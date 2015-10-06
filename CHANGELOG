@@ -1,0 +1,117 @@
+
+./ldap_check.sh "aplicant1" "abc123"
+
+
+######################################################################################
+API END POINT(s):
+
+
+		1. LOGIN/SIGNIN
+			 
+			 url = http://<IP>/api/api-entry-list.php
+			 
+			 parameters:
+			    user - LDAP user-id
+			    pass - LDAP user-password
+	
+	  2. LIST
+			 
+			 url = http://<IP>/api/api-entry-login.php
+			  
+			 parameters:
+			    <NONE> 
+
+			 note:
+				will use the LDAP manager's account
+	            ( filter it in the other-side )
+
+	  3. SEARCH
+			 
+			 url = http://<IP>/api/api-entry-search.php
+			 
+			 parameters:
+			    user - LDAP user-id
+
+			 note:
+				will use the LDAP manager's account
+	            ( filter it in the other-side )
+			 
+	  4. UPDATE
+			 
+			
+			 url = http://<IP>/api/api-entry-modify.php
+			 
+			 parameters:
+			    user - LDAP user-id	
+				pass - LDAP user-password
+				email- User's email address
+				desc - User's description or remarks
+
+	  5. UPDATE-PASSWORD
+			 
+			 url = http://<IP>/api/api-entry-change-pass.php
+			 
+			 parameters:
+			    user    - LDAP user-id	
+				pass    - LDAP user-password
+				newpass - User's new password
+				
+	  6. ADD
+			 
+			 url = http://<IP>/api/api-entry-add.php
+			 
+			 parameters:
+			    user      - LDAP user-id	
+				pass      - LDAP user-password
+				firstname - User's firstname
+				middlename- User's middlename
+				lastname  - User's lastname
+				email     - User's email address
+				desc      - User's description or remarks
+			 
+			 note:
+				will use the LDAP manager's account
+	            ( filter it in the other-side )				
+				
+######################################################################################
+CN = Common Name
+OU = Organizational Unit
+DC = Domain Component
+
+
+travel_mart
+rclrew
+mstr
+ctrack_applicant
+ctrack_employee
+
+
+# travel_mart, Groups, shrss.domain
+dn: cn=travel_mart,ou=Groups,dc=shrss,dc=domain
+objectClass: top
+objectClass: groupofuniquenames
+cn: travel_mart
+
+# rclrew, Groups, shrss.domain
+dn: cn=rclrew,ou=Groups,dc=shrss,dc=domain
+objectClass: top
+objectClass: groupofuniquenames
+cn: rclrew
+
+# mstr, Groups, shrss.domain
+dn: cn=mstr,ou=Groups,dc=shrss,dc=domain
+objectClass: top
+objectClass: groupofuniquenames
+cn: mstr
+
+# ctrack_applicant, Groups, shrss.domain
+dn: cn=ctrack_applicant,ou=Groups,dc=shrss,dc=domain
+objectClass: top
+objectClass: groupofuniquenames
+cn: ctrack_applicant
+
+# ctrack_employee, Groups, shrss.domain
+dn: cn=ctrack_employee,ou=Groups,dc=shrss,dc=domain
+objectClass: top
+objectClass: groupofuniquenames
+cn: ctrack_employee

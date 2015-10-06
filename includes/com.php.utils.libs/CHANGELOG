@@ -1,0 +1,15 @@
+|-----------------------------------------------------------------------------    
+|    @how-to
+|    $dsn     = 'mysql://someuser:apasswd@localhost/thedb';
+|    $opt     = array(
+|    	     'result_buffering' => false,
+|    	     'portability'      => MDB2_PORTABILITY_ALL,
+|    );
+|    
+|    
+|    
+|    //init
+|    $mySqlMdb_App   = mySqlMdb($dsn);
+|    $SqlMdb_Obj_App = $mySqlMdb_App ->init();
+|    
+|
