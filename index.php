@@ -130,6 +130,7 @@ $app->group('/ldap', function () use ($app,&$api)
 }); //MAP LDAP-GROUP
 
  
+ 
 //404
 $app->notFound(function () use ($app,&$api) 
 {
