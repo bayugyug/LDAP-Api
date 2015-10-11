@@ -5,14 +5,16 @@ $(function() {
 
 
 	//list remote urls
-	params["/api/index.php/ldap/restapi/signin"]     = ["user", "pass","company"]; 
-	params["/api/index.php/ldap/restapi/search"]     = ["user", "company"]; 
+	params["/api/index.php/ldap/restapi/signin"]     = ["user", "pass"]; 
+	params["/api/index.php/ldap/restapi/search"]     = ["user"]; 
 	params["/api/index.php/ldap/restapi/list"]       = ["company"]; 
-	params["/api/index.php/ldap/restapi/modify"]     = ["user", "pass","email","description","company"]; 
-	params["/api/index.php/ldap/restapi/changepass"] = ["user", "pass", "newpass","company"]; 
-	params["/api/index.php/ldap/restapi/add"]        = ["user", "pass", "firstname", "middlename", "lastname","email","description","company"]; 
+	params["/api/index.php/ldap/restapi/modify"]     = ["user", "firstname", "middlename", "lastname","description"]; 
+	params["/api/index.php/ldap/restapi/changepass"] = ["user", "pass", "newpass"]; 
+	params["/api/index.php/ldap/restapi/add"]        = ["user", "pass", "email","firstname", "middlename", "lastname","description","company"]; 
 	params["/api/index.php/ldap/restapi/memberof"]   = ["user"]; 
-	
+	params["/api/index.php/ldap/restapi/session"]    = ["user", "company"]; 
+	params["/api/index.php/ldap/restapi/sid"]        = ["sid"]; 
+	params["/api/index.php/ldap/restapi/signout"]    = ["user", "company"]; 
 	
 	$('#cmbAPIType').val(0);
 	$('#tdParams').html('&nbsp');

@@ -40,7 +40,7 @@ include_once('Slim/Slim.php');
 //-----
 //@misc
 //-----
-if(0){
+if(1){
 		//init dbs here
 		global $gSqlDb,$DBOPTS;
 		$gSqlDb = new mySqlDbh2($DBOPTS);

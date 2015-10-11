@@ -49,6 +49,9 @@
 					<option value="/api/index.php/ldap/restapi/changepass" >05. LDAP User Change Password</option>
 					<option value="/api/index.php/ldap/restapi/add"        >06. LDAP User Add/Register</option>
 					<option value="/api/index.php/ldap/restapi/memberof"   >07. LDAP User Is Member-Of</option>
+					<option value="/api/index.php/ldap/restapi/session"    >08. LDAP User Session [by User/CN]</option>
+					<option value="/api/index.php/ldap/restapi/sid"        >09. LDAP User Session [by SID (SessionId]</option>
+					<option value="/api/index.php/ldap/restapi/signout"    >10. LDAP Sign-out User</option>
 			   </select>
             </td>
         </tr>
@@ -99,7 +102,8 @@
             </td>
         </tr>
 
-    </table>
+
+		</table>
 	</div>
 </div>
 </body>

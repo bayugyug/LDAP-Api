@@ -13,9 +13,9 @@ cd /var/www/html/api
 
 timeStamp "Start! [$@]"
 
-USERID=$(trim  "$1")
+USERID=$(trim   "$1")
 
-timeStamp "USER-ID:${USERID} -> ${COMPANY}"
+timeStamp "USER-ID:${USERID}"
 
 #sanity chk
 [[ "0" == "${#USERID}" ]] && {
@@ -32,7 +32,8 @@ timeStamp "USER-ID:${USERID} -> ${COMPANY}"
 }
 
 #run
-/usr/bin/ldapsearch -x -b "dc=shrss,dc=domain" '(&(uid=$USERID)(cn=*))' 
+/usr/bin/ldapsearch -D "cn=Directory Manager" -x "uid=$USERID"  -w '!shrss!@#$%'
+
 dret=$?
 timeStamp "del ${USERID} :${dret}"
 

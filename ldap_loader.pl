@@ -120,6 +120,27 @@ while(<$fh>)
 	$ldap_sn   = &trim($ldap_sn  );
 	$ldap_mail = &trim($ldap_mail);	
 	
+	if(length($ldap_uid) <=0)
+	{
+		print "Ignoring> blank uid $ldap_uid;\n";
+		next;
+	}
+	if(length($ldap_name) <=0)
+	{
+		print "Ignoring> blank name $ldap_name;\n";
+		next;
+	}
+	if(length($ldap_sn) <=0)
+	{
+		print "Ignoring> blank sn $ldap_sn;\n";
+		next;
+	}
+	if(length($ldap_mail) <=0)
+	{
+		print "Ignoring> blank mail $ldap_mail;\n";
+		next;
+	}
+
 	$parsed++;
 	#chk
 	&ldap_search($cn,$ldap_uid,$ldap_name,$ldap_sn,$ldap_mail);

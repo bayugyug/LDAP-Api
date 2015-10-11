@@ -24,12 +24,13 @@ class LDAP_Groups_Api{
 	protected $mapping = null;
 
 	//group names
-	const LDAP_GRP_PEOPLE           = 'people';
-	const LDAP_GRP_TRAVEL_MART      = 'travel_mart';
-	const LDAP_GRP_RCLREW           = 'rclcrew';
-	const LDAP_GRP_MSTR             = 'mstr';
-	const LDAP_GRP_CTRACK_APPLICANT = 'ctrac_applicant';
-	const LDAP_GRP_CTRACK_EMPLOYEE  = 'ctrac_employee';
+	var  $LDAP_GRP_PEOPLE           = 'people';
+	var  $LDAP_GRP_TRAVEL_MART      = 'travel_mart';
+	var  $LDAP_GRP_RCLREW           = 'rclcrew';
+	var  $LDAP_GRP_MSTR             = 'mstr';
+	var  $LDAP_GRP_CTRACK_APPLICANT = 'ctrac_applicant';
+	var  $LDAP_GRP_CTRACK_EMPLOYEE  = 'ctrac_employee';
+
 
 	/**
 	* main API
@@ -50,12 +51,12 @@ class LDAP_Groups_Api{
 		//sanity chk
 		switch(strtolower($grp) )
 		{
-				case self::LDAP_GRP_PEOPLE           :
-				case self::LDAP_GRP_TRAVEL_MART      :
-				case self::LDAP_GRP_RCLREW           :
-				case self::LDAP_GRP_MSTR             :
-				case self::LDAP_GRP_CTRACK_APPLICANT :
-				case self::LDAP_GRP_CTRACK_EMPLOYEE  :
+				case $this->LDAP_GRP_PEOPLE           :
+				case $this->LDAP_GRP_TRAVEL_MART      :
+				case $this->LDAP_GRP_RCLREW           :
+				case $this->LDAP_GRP_MSTR             :
+				case $this->LDAP_GRP_CTRACK_APPLICANT :
+				case $this->LDAP_GRP_CTRACK_EMPLOYEE  :
 					$valid = true;
 					break;
 				default:
@@ -148,6 +149,7 @@ class LDAP_Groups_Api{
 			);
 		
 	} //init
+	
 
 }//class	
 ?>

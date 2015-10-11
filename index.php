@@ -82,49 +82,78 @@ $app->group('/ldap', function () use ($app,&$api)
 		{
 			$api->hit(API_HIT_SIGN_IN);
 			return true;
-		})->via('GET', 'POST')->name(MY_APP_NAME);  
+		})->via('GET', 'POST');  
 	 
         //add entry
 		$app->map('/add', function () use ($app,&$api) 
 		{
 			$api->hit(API_HIT_ENTRY_ADD);
 			return true;
-		})->via('POST', 'PUT')->name(MY_APP_NAME);  
+		})->via('POST', 'PUT');  
         
 		//update entry
 		$app->map('/modify', function () use ($app,&$api) 
 		{
 			$api->hit(API_HIT_ENTRY_UPDATE);
 			return true;
-		})->via('POST', 'PUT')->name(MY_APP_NAME);
+		})->via('POST', 'PUT');
 		
 		//search
 		$app->map('/search', function () use ($app,&$api) 
 		{
 			$api->hit(API_HIT_ENTRY_SEARCH);
 			return true;
-		})->via('GET', 'POST')->name(MY_APP_NAME);
+		})->via('GET', 'POST');
 		
 		//list
 		$app->map('/list', function () use ($app,&$api) 
 		{
 			$api->hit(API_HIT_ENTRY_LIST);
 			return true;
-		})->via('GET', 'POST')->name(MY_APP_NAME);
+		})->via('GET', 'POST');
     	
 		//change-password
 		$app->map('/changepass', function () use ($app,&$api) 
 		{
 			$api->hit(API_HIT_ENTRY_CHPASS);
 			return true;
-		})->via('GET', 'POST')->name(MY_APP_NAME);
+		})->via('GET', 'POST');
+		
 		//member-of
 		$app->map('/memberof', function () use ($app,&$api) 
 		{
 			$api->hit(API_HIT_ENTRY_MEMBER);
 			return true;
-		})->via('GET', 'POST')->name(MY_APP_NAME);  
-	
+		})->via('GET', 'POST');  
+		
+		//session
+		$app->map('/session', function () use ($app,&$api) 
+		{
+			$api->hit(API_HIT_ENTRY_SESSION);
+			return true;
+		})->via('GET', 'POST');  
+		
+		//session id
+		$app->map('/sid', function () use ($app,&$api) 
+		{
+			$api->hit(API_HIT_ENTRY_SID);
+			return true;
+		})->via('GET', 'POST');  
+		
+		//sign-out
+		$app->map('/signout', function () use ($app,&$api) 
+		{
+			$api->hit(API_HIT_SIGN_OUT);
+			return true;
+		})->via('GET', 'POST'); 
+		
+		//csv upload
+		$app->map('/dumpcsv', function () use ($app,&$api) 
+		{
+			$api->hit(API_HIT_CSV_DUMP);
+			return true;
+		})->via('GET', 'POST'); 
+		
 	}); //MAP REST-API
 	
 }); //MAP LDAP-GROUP
