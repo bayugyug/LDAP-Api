@@ -458,7 +458,11 @@ class LDAP_Api{
 				 $this->set_session_db(array(          
 									'user'  => $xuser,
 									'cn'    => $cn,
-									'sid'   => base64_encode(openssl_random_pseudo_bytes(64)), 
+									'sid'   => sprintf("%x-%s-%s-%x",
+															  mt_rand(),
+															  md5(base64_encode(openssl_random_pseudo_bytes(512))),
+															  md5(base64_encode(openssl_random_pseudo_bytes(256))),
+															  mt_rand()), 
 									));
 				 $dbsess["$cn"]  = $this->get_session_db_by($xuser,$cn);														
 			}
@@ -1779,6 +1783,56 @@ class LDAP_Api{
 			if($ldapconn)
 			  @ldap_free_result($ldapconn);
 	}
+	//encrypt decrypt
+	protected function do_word_shuffle($shuffle=1)
+	{
+			//get params
+			$word  = trim($_REQUEST['word']);
+			
+			$reply = $this->init_resp();
+
+			//sanity check -> LISTS
+			if( !strlen($word) )
+			{
+				//fmt reply 500
+				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['message']    = "Invalid parameters!";
+				//give it back
+				$this->send_reply($reply);
+				
+				return;
+			}
+
+			//encrypt
+			if(1 == $shuffle)
+			{
+				//encrypt the word
+				$res    			 = $this->str_enc($word);
+				$reply['message']    = "Word successfully shuffled.";
+				$reply['word']        = $res; 
+			}
+			else
+			{
+				//decrypt the word
+				$res    			 = $this->str_dec($word);
+				$reply['message']    = "Word successfully un-shuffled.";
+				$reply['word']       = $res; 
+			}
+			
+			//fmt reply 200
+			$reply['status']     = true;
+			$reply['statuscode'] = HTTP_SUCCESS;
+			$reply['result']     = array(
+								 );
+			
+
+			//free memory
+			$this->unset_sess_id();	
+			
+			//give it back
+			$this->send_reply($reply);
+	}
+	
 	
 	
 	
@@ -2425,56 +2479,6 @@ class LDAP_Api{
 	}
 	
 
-	//encrypt decrypt
-	protected function do_word_shuffle($shuffle=1)
-	{
-			//get params
-			$word  = trim($_REQUEST['word']);
-			
-			$reply = $this->init_resp();
-
-			//sanity check -> LISTS
-			if( !strlen($word) )
-			{
-				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
-				$reply['message']    = "Invalid parameters!";
-				//give it back
-				$this->send_reply($reply);
-				
-				return;
-			}
-
-			//encrypt
-			if(1 == $shuffle)
-			{
-				//encrypt the word
-				$res    			 = $this->str_enc($word);
-				$reply['message']    = "Word successfully shuffled.";
-				$reply['word']        = $res; 
-			}
-			else
-			{
-				//decrypt the word
-				$res    			 = $this->str_dec($word);
-				$reply['message']    = "Word successfully un-shuffled.";
-				$reply['word']       = $res; 
-			}
-			
-			//fmt reply 200
-			$reply['status']     = true;
-			$reply['statuscode'] = HTTP_SUCCESS;
-			$reply['result']     = array(
-								 );
-			
-
-			//free memory
-			$this->unset_sess_id();	
-			
-			//give it back
-			$this->send_reply($reply);
-	}
-	
 	//encrypt
 	protected function str_enc($word='')
 	{
