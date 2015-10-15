@@ -458,11 +458,12 @@ class LDAP_Api{
 				 $this->set_session_db(array(          
 									'user'  => $xuser,
 									'cn'    => $cn,
-									'sid'   => sprintf("%x-%s-%s-%x",
+									'sid'   => sprintf("%x-%s-%s-%x-%s",
 															  mt_rand(),
 															  md5(base64_encode(openssl_random_pseudo_bytes(512))),
 															  md5(base64_encode(openssl_random_pseudo_bytes(256))),
-															  mt_rand()), 
+															  mt_rand(),
+															  substr(md5(uniqid()),0,16) ), 
 									));
 				 $dbsess["$cn"]  = $this->get_session_db_by($xuser,$cn);														
 			}
