@@ -15,6 +15,9 @@ $(function() {
 	params["/api/index.php/ldap/restapi/session"]    = ["user", "company"]; 
 	params["/api/index.php/ldap/restapi/sid"]        = ["sid"]; 
 	params["/api/index.php/ldap/restapi/signout"]    = ["user", "company"]; 
+	params["/api/index.php/ldap/restapi/resetpass"]  = ["user", "pass"]; 
+	params["/api/index.php/ldap/restapi/encryptword"]= ["word"]; 
+	params["/api/index.php/ldap/restapi/decryptword"]= ["word"]; 
 	
 	$('#cmbAPIType').val(0);
 	$('#tdParams').html('&nbsp');

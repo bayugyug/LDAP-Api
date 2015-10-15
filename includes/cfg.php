@@ -97,7 +97,9 @@ define('API_HIT_ENTRY_SESSION', 'session');
 define('API_HIT_ENTRY_SID',     'sid');
 define('API_HIT_SIGN_OUT',      'signout');
 define('API_HIT_CSV_DUMP',      'csvdump');
-
+define('API_HIT_WORD_ENC',      'encrypt');
+define('API_HIT_WORD_DEC',      'decrypt');
+define('API_HIT_RESET_PASS',    'resetpass');
 //session
 define('API_SID_NAME',          'LDAPApi');
 
@@ -124,5 +126,10 @@ $_API_KEYS = array(
 				sprintf("rccl-%s",md5('#!/rccl/api/k4')),
 				sprintf("rccl-%s",md5('#!/rccl/api/k5')),
 );                             
+
+//enc
+define('LDAP_API_ENC_METHOD','aes-128-cbc');
+define('LDAP_API_ENC_IV',    md5(sprintf("%s-%s",LDAP_API_ENC_METHOD,'#!/ldap/restapi/rccl/0123455@')));
+define('LDAP_API_ENC_PASS',  md5(sprintf("%s-%s",LDAP_API_ENC_METHOD,'#!/ldap/restapi/rccl/9876543$')));
 
 ?>

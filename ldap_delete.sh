@@ -49,7 +49,7 @@ case "${COMPANY}" in
 	   grp=$LDAP_GROUPS
 	;;
 	*)
-	   grp=$LDAP_PEOPLE
+	   grp=$LDAP_GROUPS
 	;;
 	
 esac

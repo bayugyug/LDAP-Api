@@ -14,8 +14,8 @@ use File::Basename;
 use FindBin qw($Bin $Script $RealBin);
 use Getopt::Std;
 use Spreadsheet::ParseExcel;
-
-
+use POSIX;
+use Digest::MD5;
 
 
 #for buffering I/O
@@ -29,6 +29,7 @@ my $ROOT     = '/var/www/html/api';
 my $LDIF     = 0;
 my $PASSDEF  = 'abc123';
 my $STATS    = {};
+my $TODI     = strftime("%Y-%m-%d",localtime);
 
 #get csv file
 getopt("f:");
@@ -46,7 +47,7 @@ Oops, parameter invalid!
  
 ./$Script -f csv-file
  
-";
+ ";
    exit 1
 }
 	
@@ -55,11 +56,17 @@ Oops, parameter invalid!
 
 my $fl = basename($csv);
 my @fn = split(/\./,$fl);
+my $dst= sprintf("%s-%s-%d.done.csv",$csv,$TODI,$$);
 
-print "CSV FILE => ($csv) -> $fl\n";
+print "
+
+CSV FILE => ($csv) -> $fl
+
+\n";
 
 my $cn = lc($fn[0]);
-my $xt = $fn[1];
+my $dt = $fn[1];
+my $xt = $fn[2];
 
 if($xt !~ /^(csv)$/i)
 {
@@ -68,6 +75,8 @@ if($xt !~ /^(csv)$/i)
 	Invalid extension found.
 	
 	Must be a CSV file!
+	
+	<CN>.YYYYMMDD.csv
 	
 	";
 	exit 1;
@@ -146,8 +155,10 @@ while(<$fh>)
 	}
 	if(length($ldap_pass) <=0)
 	{
-		$ldap_pass = 'abc123';
-		print "set default> blank password $ldap_pass;\n";
+	    my $rstr   = Digest::MD5::md5_base64( rand );
+		   $rstr   =~ s/[^A-Z0-9]+//gi;
+		$ldap_pass = substr($rstr,0,8);
+		print "set default> blank password=> '$ldap_pass'\n";
 	}
 	$parsed++;
 	#chk

@@ -52,6 +52,9 @@
 					<option value="/api/index.php/ldap/restapi/session"    >08. LDAP User Session [by User/CN]</option>
 					<option value="/api/index.php/ldap/restapi/sid"        >09. LDAP User Session [by SID (SessionId]</option>
 					<option value="/api/index.php/ldap/restapi/signout"    >10. LDAP Sign-out User</option>
+					<option value="/api/index.php/ldap/restapi/resetpass"  >11. LDAP User Reset Password</option>
+					<option value="/api/index.php/ldap/restapi/encryptword">12. LDAP Utils (Encrypt)</option>
+					<option value="/api/index.php/ldap/restapi/decryptword">13. LDAP Utils (Decrypt)</option>
 			   </select>
             </td>
         </tr>

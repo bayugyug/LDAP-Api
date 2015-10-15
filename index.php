@@ -153,6 +153,24 @@ $app->group('/ldap', function () use ($app,&$api)
 			$api->hit(API_HIT_CSV_DUMP);
 			return true;
 		})->via('GET', 'POST'); 
+		//word encrypt
+		$app->map('/encryptword', function () use ($app,&$api) 
+		{
+			$api->hit(API_HIT_WORD_ENC);
+			return true;
+		})->via('GET', 'POST'); 
+		//word decrypt
+		$app->map('/decryptword', function () use ($app,&$api) 
+		{
+			$api->hit(API_HIT_WORD_DEC);
+			return true;
+		})->via('GET', 'POST'); 
+		//reset password 
+		$app->map('/resetpass', function () use ($app,&$api) 
+		{
+			$api->hit(API_HIT_RESET_PASS);
+			return true;
+		})->via('GET', 'POST'); 
 		
 	}); //MAP REST-API
 	

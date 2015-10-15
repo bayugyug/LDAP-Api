@@ -102,7 +102,16 @@ class LDAP_Api{
 			case API_HIT_CSV_DUMP:
 				$this->do_csv_dump();
 				break;	
-				//notfound
+			case API_HIT_WORD_ENC:
+				$this->do_word_shuffle(1);
+				break;
+			case API_HIT_WORD_DEC:
+				$this->do_word_shuffle(0);
+				break;	
+			case API_HIT_RESET_PASS:
+				$this->do_entry_reset_pass();
+				break;				
+			//notfound
 			default:	
 				$this->send_reply($this->notfound());
 		}
@@ -953,6 +962,8 @@ class LDAP_Api{
 			//update password, use the parameter
 			$ndata['email' ] = $bdata['data']['email'] ;
 			$ndata['pass']   = base64_encode(pack('H*', md5($newpass)));
+			$rawstr          = $this->str_enc($newpass);
+			$ndata['pass']   = "$rawstr";
 			$pret            = $this->ldap_user_upd_pwd_db($ndata);
 
 			//fmt reply 200
@@ -1083,7 +1094,9 @@ class LDAP_Api{
 			$UIDlist   = array();
 			if($chkmail['exists']>0)
 			{
+				$rawstr                  = $this->str_dec($chkmail['data']['passwd']);
 				$info["userPassword"]    = '{md5}'. $chkmail['data']['passwd'];
+				$info["userPassword"]    = "$rawstr";
 				$dmp = @var_export($info["userPassword"],1);
 				debug("WILL USE THE OLD PWD> $dmp");
 				
@@ -1271,6 +1284,8 @@ class LDAP_Api{
 				//update password, use the parameter
 				$ndata['email' ] = $email     ;
 				$ndata['pass']   = base64_encode(pack('H*', md5($pass)));
+				$rawstr          = $this->str_enc($pass);
+				$ndata['pass']   = "$rawstr";
 				$pret            = $this->ldap_user_upd_pwd_db($ndata);
 				
 				//add
@@ -1418,7 +1433,7 @@ class LDAP_Api{
 		global $_API_KEYS;
 		
 			//get params
-			$sid   = trim($_REQUEST['sid']);
+			$sid   = @str_replace("\\","", trim($_REQUEST['sid']));
 			$apikey= trim($_REQUEST['apikey']);
 			
 			$reply = $this->init_resp();
@@ -1649,6 +1664,122 @@ class LDAP_Api{
 			$this->send_reply($reply);
 	}
 	
+	//reset password
+	protected function do_entry_reset_pass()
+	{
+			//get params
+			$user   = trim($_REQUEST['user']);
+			$pass   = trim($_REQUEST['pass']);
+			
+			//init
+			$reply  = $this->init_resp();
+
+			//sanity check -> LISTS
+			if(
+				!strlen($user)    or 
+				!strlen($pass)    
+			)
+			{
+				//fmt reply 500
+				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['message']    = "Invalid parameters!";
+				//give it back
+				$this->send_reply($reply);
+				return;
+			}
+
+			//chk email
+			$bdata = $this->ldap_user_get_by_userid($user);
+			if(!$bdata['exists'])
+			{
+					//fmt reply 404
+					$reply['statuscode'] = HTTP_NOT_FOUND;
+					$reply['message']    = "User not found in db!";
+					//give it back
+					$this->send_reply($reply);
+					return;
+			}
+			
+			//conn
+			$res = $this->try_ldap(LDAP_ADMIN_USER,null,null,LDAP_ENTRY_ROOT_DN_UPD);
+			if(!$res['ldapstat'])
+			{
+				$this->send_reply($res['ldapmesg']);
+				return;
+			}
+
+			//get conn
+			$ldapconn                = $res['ldapconn'];
+			
+			// prepare data
+			$info["userPassword"]    = '{md5}' . base64_encode(pack('H*', md5($pass)));
+			
+			$dmp = @var_export($bdata,1);				
+			debug("DB-RROW> $dmp");
+
+			//get list
+			$uidlist   = array();
+			$uidlist[] = $user;
+			if(strlen($bdata['data']['tm'])>0      and ($bdata['data']['tm']      !== $user))
+					$uidlist[] = trim($bdata['data']['tm']);
+			if(strlen($bdata['data']['mstr'])>0    and ($bdata['data']['mstr']    !== $user))
+					$uidlist[] = trim($bdata['data']['mstr']);
+			if(strlen($bdata['data']['rclcrew'])>0 and ($bdata['data']['rclcrew'] !== $user))
+					$uidlist[] = trim($bdata['data']['rclcrew']);
+			if(strlen($bdata['data']['ctrac'])>0   and ($bdata['data']['ctrac']   !== $user))
+					$uidlist[] = trim($bdata['data']['ctrac']);
+			if(strlen($bdata['data']['ctrac_app'])>0   and ($bdata['data']['ctrac_app']   !== $user))
+					$uidlist[] = trim($bdata['data']['ctrac_app']);
+
+			$dmp = @var_export($uidlist,1);
+			debug("LIST-OF-CNS-UID>$dmp;");
+	
+			foreach($uidlist as $kk => $vv)
+			{
+				    //GROUPS
+					$ldaprdn  = sprintf("uid=%s,%s",$vv,LDAP_RDN_GROUPS);  
+					
+					$dmp = @var_export($info,1);				
+					debug("$kk> RESET-PASS > DN=$ldaprdn; [ $dmp ]");
+			
+					//update entry
+					$update  = ldap_modify($ldapconn, $ldaprdn, $info);
+					if(!$update)
+					{
+							//fmt reply 403
+							$reply['status']     = false;
+							$reply['statuscode'] = HTTP_FORBIDDEN;
+							$reply['message']    = "Reset password failed.";
+							$reply['error']      = $this->fmt_err_msg($ldapconn);
+							
+							//give it back
+							$this->send_reply($reply);
+							return;
+					}
+					
+			}
+
+			//reset password, use the parameter
+			$ndata['email' ] = $bdata['data']['email'] ;
+			$ndata['pass']   = base64_encode(pack('H*', md5($pass)));
+			$rawstr          = $this->str_enc($pass);
+			$ndata['pass']   = "$rawstr";
+			$pret            = $this->ldap_user_upd_pwd_db($ndata);
+
+			//fmt reply 200
+			$reply['status']     = true;
+			$reply['statuscode'] = HTTP_SUCCESS;
+			$reply['message']    = "Reset password successful.";
+			$reply['result']     = array(
+								 );
+			//give it back
+			$this->send_reply($reply);
+
+			//free
+			if($ldapconn)
+			  @ldap_free_result($ldapconn);
+	}
+	
 	
 	
 	
@@ -1681,6 +1812,7 @@ class LDAP_Api{
 					'statuscode'  => $code,
 					'result'      => array(),
 					'message'     => $msg,
+					'authsid'     => $this->get_sess_id(),
 			);
 
 	}
@@ -2023,7 +2155,7 @@ class LDAP_Api{
 		$middlename   = addslashes(trim($pdata['middlename']  ));
 		$lastname     = addslashes(trim($pdata['lastname'  ]  ));
 		$email        = addslashes(trim($pdata['email'     ]  ));
-		$status       = addslashes(trim($pdata['status'    ]  ));
+		$status       = '1';
 		$group_name   = addslashes(trim($pdata['group_name']  ));
 		$tm           = addslashes(trim($pdata['tm'        ]  ));   
 		$mstr         = addslashes(trim($pdata['mstr'      ]  )); 
@@ -2037,7 +2169,6 @@ class LDAP_Api{
 					 middlename,     
 					 lastname,       
 					 email,          
-					 status,         
 					 group_name,     
 					 tm,             
 					 mstr,           
@@ -2051,7 +2182,6 @@ class LDAP_Api{
 					'$middlename',     
 					'$lastname',       
 					'$email',          
-					'$status',         
 					'$group_name',     
 					'$tm',             
 					'$mstr',           
@@ -2065,6 +2195,8 @@ class LDAP_Api{
 		//run		  
 		$res   = $gSqlDb->exec($sql, "ldap_user_add_db() : ERROR : $sql");
 		$ref   = $gSqlDb->insertId();
+
+		debug("SQL Statement for insert sso_users:: $sql");
 		
 		debug("ldap_user_add_db() : INFO : [ ref=$ref; ]");
 
@@ -2293,5 +2425,81 @@ class LDAP_Api{
 	}
 	
 
+	//encrypt decrypt
+	protected function do_word_shuffle($shuffle=1)
+	{
+			//get params
+			$word  = trim($_REQUEST['word']);
+			
+			$reply = $this->init_resp();
+
+			//sanity check -> LISTS
+			if( !strlen($word) )
+			{
+				//fmt reply 500
+				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['message']    = "Invalid parameters!";
+				//give it back
+				$this->send_reply($reply);
+				
+				return;
+			}
+
+			//encrypt
+			if(1 == $shuffle)
+			{
+				//encrypt the word
+				$res    			 = $this->str_enc($word);
+				$reply['message']    = "Word successfully shuffled.";
+				$reply['word']        = $res; 
+			}
+			else
+			{
+				//decrypt the word
+				$res    			 = $this->str_dec($word);
+				$reply['message']    = "Word successfully un-shuffled.";
+				$reply['word']       = $res; 
+			}
+			
+			//fmt reply 200
+			$reply['status']     = true;
+			$reply['statuscode'] = HTTP_SUCCESS;
+			$reply['result']     = array(
+								 );
+			
+
+			//free memory
+			$this->unset_sess_id();	
+			
+			//give it back
+			$this->send_reply($reply);
+	}
+	
+	//encrypt
+	protected function str_enc($word='')
+	{
+		//give it back
+		return  base64_encode(openssl_encrypt(
+					base64_encode($word),       
+					LDAP_API_ENC_METHOD, 
+					LDAP_API_ENC_PASS, 
+					false, 
+					LDAP_API_ENC_IV) );
+	}
+	
+	//decrypt
+	protected function str_dec($word='')
+	{
+		//give it back
+		return rtrim( base64_decode( openssl_decrypt(
+				base64_decode($word), 
+				LDAP_API_ENC_METHOD, 
+				LDAP_API_ENC_PASS, 
+				false, 
+				LDAP_API_ENC_IV ) ), "\0" );
+	
+	}
+
+	
 }//class	
 ?>
