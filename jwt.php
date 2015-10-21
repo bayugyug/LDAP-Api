@@ -1,66 +1,80 @@
 <?php
 
 //gtalk
-include_once('includes/init.php');
-include_once('JWT/JWT.php');
+include_once('includes/jwt-init.php');
+
 
 use \Firebase\JWT\JWT;
 
-echo @var_export(format_jwt('mark','mstr'),1);
-echo "===============\n";
-echo "\n";
 
-function format_jwt($user,$cn)
-{
-		global $_JWT;
+global $_JWTConf;
 
-		
-		//instance 
-		$app = new \JWT\JWT;
-		 
-			$tokenId    = base64_encode(openssl_random_pseudo_bytes(32));
-			$issuedAt   = time();
-			$notBefore  = $issuedAt  + 60;    //Adding 10 seconds
-			$expire     = $notBefore + 60*60; // Adding 60 seconds X 60 minutes
-			$serverName = $_JWT['serverName'];
 
-			/*
-			 * Create the token as an array
-			 */
-			$data = array(
-				'iat'  => $issuedAt,         // Issued at: time when the token was generated
-				'jti'  => $tokenId,          // Json Token Id: an unique identifier for the token
-				'iss'  => $serverName,       // Issuer
-				'nbf'  => $notBefore,        // Not before
-				'exp'  => $expire,           // Expire
-				'data' => array(                  // Data related to the signer user
-					'cn'       => $cn,   
-					'userName' => $user, 
-				)
-			);
-			print_r($data)	;
-			$secretKey = base64_decode( $_JWT['jwt']['key']);
-
-			/*
-			 * Extract the algorithm from the config file too
-			 */
-			$algorithm = $_JWT['jwt']['algorithm'];
-
-			/*
-			 * Encode the array to a JWT string.
-			 * Second parameter is the key to encode the token.
-			 * 
-			 * The output string can be validated at http://jwt.io/
-			 */
-			$jwt = $app::encode(
-				$data,      //Data to be encoded in the JWT
-				$secretKey, // The signing key
-				$algorithm  // Algorithm used to sign the token, see https://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-40#section-3
+echo "CONFIG:<hr>". @var_export($_JWTConf,1).'<hr>';
+				$xdata = array(
+						'iat'      => $_JWTConf['issuedAt']  ,     // Issued at: time when the token was generated
+						'jti'      => $_JWTConf['tokenId']   ,     // Json Token Id: an unique identifier for the token
+						'iss'      => $_JWTConf['issuer']    ,     // Issuer
+						'nbf'      => $_JWTConf['notBefore'] ,     // Not before
+						'exp'      => $_JWTConf['expire']    ,     // Expire
+						'payload'  => array(                 // Data related to the signer user
+							'userId'   => 'uisfsdf', // userid from the users table
+							'userName' => 'sfsdfsdf', // User name
+						)
 				);
-			
-			//give it back
-			return array (
-					'jwt' => $jwt,
-			);
-		
-	}
+				/**
+				
+				
+				**/
+				try{
+							@session_start();
+							
+							
+							//set gracefully
+							JWT::$leeway = JWT_LEEWAT_TS;
+							
+							//try to munge
+							$jwt = JWT::encode($xdata, $_JWTConf['secretKey'] );
+							$str = JWT::decode($jwt,   $_JWTConf['secretKey'],array('HS256'));
+							
+							
+							$_SESSION['_JWT'] = $jwt;
+
+							@header('Content-type: application/json');
+							@header('X-WWW-Authenticate: Basic realm="Ldap-API Secured Area"');
+							@header('X-Authorization: Bearer '.$jwt);
+
+							echo '<hr><pre>JSON-JWT-ENCDODE:' .@var_export($jwt,1)  .'</pre><hr><hr><br>';
+							echo '<hr><pre>JSON-JWT-DECODED:' .@var_export($str,1)  .'</pre><hr><hr><br>';
+							echo '<hr><pre>JSON-JWT-payload:' .@var_export($str->payload,1)  .'</pre><hr><hr><br>';
+							
+							//remove
+							JWT::$leeway = 0;
+							
+				}
+				catch(\Firebase\JWT\BeforeValidException $e)
+				{
+					echo '<br>Caught BeforeValidException: ',  $e->getMessage(), "<br>";
+					echo '<br>Caught BeforeValidException: ',  $e->getCode(),    "<br>";
+				}
+				catch(\Firebase\JWT\ExpiredException $e)
+				{
+					echo '<br>Caught ExpiredException: ',  $e->getMessage(), "<br>";
+					echo '<br>Caught ExpiredException: ',  $e->getCode(),    "<br>";
+				}
+				catch(\Firebase\JWT\SignatureInvalidException $e)
+				{
+					echo '<br>Caught SignatureInvalidException: ',  $e->getMessage(), "<br>";
+					echo '<br>Caught SignatureInvalidException: ',  $e->getCode(),    "<br>";
+				}
+				catch(Exception $e)
+				{
+					echo '<br>Caught exception: ',  $e->getMessage(), "<br>";
+					echo '<br>Caught exception: ',  $e->getCode(),    "<br>";
+				}
+				
+			 	
+				$dmp = @var_export(apache_response_headers(),1);
+				echo "dmp:<pre> $dmp </pre><br />\n";	
+				
+?>

@@ -2,6 +2,11 @@
 //gtalk
 include_once('init.php');
 
+//gtalk
+include_once('jwt-init.php');
+
+use \Firebase\JWT\JWT;
+
 /**
 |	@Filename	:	ldap.api.php
 |	@Description:	entry point
@@ -472,6 +477,7 @@ class LDAP_Api{
 			$dtls   = $this->get_user_details($user);		
 
 			//free memory
+			$this->unset_sess_id();
 			$this->set_sess_id();	
 			
 			//fmt reply 200
@@ -485,10 +491,33 @@ class LDAP_Api{
 			$reply['token']      = $this->get_sess_id();
 			$reply['email']      = $bdata['data']['email'];
 			$reply['apikey']     = $_API_KEYS[0];
+			
+			if('jwt' == 'jwt')
+			{
+					//encode
+					$reply['jwt']        = $this->jwt(array(
+												'user'	 =>  $user,
+												'email'	 =>  $reply['email'],
+												'apikey' =>  $reply['apikey'],
+												'session'=>  $reply['sessionid'],
+											) );
 
+					
+					
+					//oops:HTTP_SERVICE_UNAVAILABLE
+					if(null == $reply['jwt'])
+					{
+						$this->send_reply(
+								$this->notfound(
+									HTTP_SERVICE_UNAVAILABLE,
+									'Service Unavailable')
+									);
+						return;
+					}				
+			}
+			
 			//give it back
 			$this->send_reply($reply);
-
 
 			//free
 			if($ldapconn)
@@ -2505,6 +2534,54 @@ class LDAP_Api{
 	
 	}
 
+	protected function jwt($payload=array())
+	{
+		global $_JWTConf;
+		
+		//fmt
+		$jwt   = null;
+		$jdata = array(
+						'iat'      => $_JWTConf['issuedAt']  ,     // Issued at: time when the token was generated
+						'jti'      => $_JWTConf['tokenId']   ,     // Json Token Id: an unique identifier for the token
+						'iss'      => $_JWTConf['issuer']    ,     // Issuer
+						'nbf'      => $_JWTConf['notBefore'] ,     // Not before
+						'exp'      => $_JWTConf['expire']    ,     // Expire
+						'payload'  => $payload               ,
+ 				);
+				
+				try{
+							//set gracefully
+							JWT::$leeway = JWT_LEEWAT_TS;
+							
+							//try to munge
+							$jwt = JWT::encode($jdata, $_JWTConf['secretKey'] );
+							@header('X-WWW-Authenticate: Basic realm="Ldap-API Secured Area"');
+							@header('X-Authorization: Bearer '.$jwt);
+							//remove
+							JWT::$leeway = 0;
+							debug("jwt() : [INFO] $jwt;");
+				}
+				catch(\Firebase\JWT\BeforeValidException $e)
+				{
+					debug("jwt() : [BeforeValidException]". $e->getMessage());
+				}
+				catch(\Firebase\JWT\ExpiredException $e)
+				{
+					debug("jwt() : [ExpiredException]". $e->getMessage());
+				}
+				catch(\Firebase\JWT\SignatureInvalidException $e)
+				{
+					debug("jwt() : [SignatureInvalidException]". $e->getMessage());
+				}
+				catch(Exception $e)
+				{
+					debug("jwt() : [Exception]". $e->getMessage());
+				}
+				
+				//give it back
+				return $jwt;
+		
+	}
 	
 }//class	
 ?>
