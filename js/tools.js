@@ -7,8 +7,8 @@ $(function() {
 	//list remote urls
 	params["/api/index.php/ldap/restapi/signin"]     = ["user", "pass"]; 
 	params["/api/index.php/ldap/restapi/search"]     = ["user"]; 
-	params["/api/index.php/ldap/restapi/list"]       = ["company"]; 
-	params["/api/index.php/ldap/restapi/modify"]     = ["user", "firstname", "middlename", "lastname","description"]; 
+	params["/api/index.php/ldap/restapi/list"]       = ["company","page","batch"]; 
+	params["/api/index.php/ldap/restapi/modify"]     = ["user", "firstname", "middlename", "lastname","description","active"]; 
 	params["/api/index.php/ldap/restapi/changepass"] = ["user", "pass", "newpass"]; 
 	params["/api/index.php/ldap/restapi/add"]        = ["user", "pass", "email","firstname", "middlename", "lastname","description","company"]; 
 	params["/api/index.php/ldap/restapi/memberof"]   = ["user"]; 
@@ -17,7 +17,8 @@ $(function() {
 	params["/api/index.php/ldap/restapi/signout"]    = ["user", "company"]; 
 	params["/api/index.php/ldap/restapi/resetpass"]  = ["user", "pass"]; 
 	params["/api/index.php/ldap/restapi/encryptword"]= ["word"]; 
-	params["/api/index.php/ldap/restapi/decryptword"]= ["word"]; 
+	params["/api/index.php/ldap/restapi/decryptword"]= ["word","user"]; 
+	params["/api/index.php/ldap/restapi/changemail"] = ["user", "email"];
 	
 	$('#cmbAPIType').val(0);
 	$('#tdParams').html('&nbsp');
@@ -84,14 +85,45 @@ $(function() {
 		
 		$('#tdResponse').html('&nbsp');
 		$('#txtResponse').html('&nbsp');
+		
+		$('#txtResponse').html('<div class="alert alert-warning" style="width:95%">Please wait while we are retrieving from API server  <span class="glyphicon glyphicon-download-alt"></span></div>');
+		
         if ($('#txtURL').val() != "")
         {
             var params = getData();
+			
             $.post( $('#txtURL').val(), params)
               .done(function( resp ) {
-                  $('#txtResponse').html('<p class="wbreak">'+resp+'</p>');
+                  $('#txtResponse').html('<p class="wbreak">'+escapeHtml(resp)+'</p>');
+				  console.log(resp);
+            }).fail(function( resp ) {
+                  $('#txtResponse').html('<p style="color:red;font-size:1.2em;" class="wbreak">'+ escapeHtml(JSON.stringify(resp)) +'<hr></p>');
+				  console.log(resp);
             });
         }
-
+		else
+		{
+			$('#txtResponse').html('&nbsp');
+		}
     });
+	
+	
+	
+		
+	var entityMap = {
+		"&": "&amp;",
+		"<": "&lt;",
+		">": "&gt;",
+		'"': '&quot;',
+		"'": '&#39;',
+		"/": '&#x2F;'
+		};
+
+	  function escapeHtml(string) {
+		return String(string).replace(/[&<>"'\/]/g, function (s) {
+		  return entityMap[s];
+		});
+	  }
+	
+	
 });

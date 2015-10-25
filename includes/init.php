@@ -17,9 +17,9 @@
 @session_cache_limiter(false);
 @session_start();
 
-ini_set("include_path", ini_get("include_path") .':'.
-					    dirname(__FILE__).'/com.php.utils.libs:.');
-			
+ini_set("include_path", ini_get("include_path") . PATH_SEPARATOR .
+					    dirname(__FILE__). DIRECTORY_SEPARATOR .'com.php.utils.libs'. PATH_SEPARATOR .'.');
+						
 //misc
 include_once('status.codes.php');
 include_once('const.php');

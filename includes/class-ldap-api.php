@@ -28,13 +28,16 @@ class LDAP_Api{
 	protected $action = API_HIT_ENTRY_SEARCH;
 	
 	//mapping
-	var    $MapGroup = null;
-	
+	var    $MapGroup     = null;
+	var    $SLIM         = null;
+	var    $ShowResults  = true;
+	var    $ShowStatCode = false;
+	var    $LIMIT        = BATCH_LIST_MAX;
 	/**
 	* main API
 	*
 	*/
-	function __construct($action = API_HIT_ENTRY_SEARCH)
+	function __construct($action = API_HIT_ENTRY_SEARCH,$showres=true,$status=false)
 	{
 		//init
 		$this->action = $action;
@@ -43,16 +46,28 @@ class LDAP_Api{
 		
 		//group
 		$this->MapGroup = new LDAP_Groups_Api;
+		
+		//flag
+		$this->ShowResults = $showres;
+		$this->ShowStatCode= $status;
+		
+		//slim
+		$this->SLIM = new \Slim\Slim(array(
+			));
 	}	
 
 	//do=it
-	public function hit($act=null)
+	public function hit($act=null,$slim=null)
 	{
 		global $_JWT;
 		
 		if($act != null)
 		{
 			$this->action = $act;
+		}
+		if($slim != null)
+		{
+			$this->SLIM = $slim;
 		}
 		//chk
 		$dmp    = $this->action;
@@ -67,60 +82,75 @@ class LDAP_Api{
 			$this->send_reply($this->notfound());
 			return;
 		}
-		
-		//chk it
-		switch($this->action)
+
+		try{
+				//chk it
+				switch($this->action)
+				{
+					case API_HIT_SIGN_IN:
+						$this->do_sign_in();
+						break;
+					case API_HIT_ENTRY_SEARCH:
+						$this->do_entry_search();
+						break;
+					case API_HIT_ENTRY_LIST:
+						$this->do_entry_list();
+						break;
+					case API_HIT_ENTRY_MEMBER:
+						$this->do_entry_member();
+						break;
+					case API_HIT_ENTRY_UPDATE:
+						$this->do_entry_update();
+						break;
+					case API_HIT_ENTRY_ADD:
+						$this->do_entry_add();
+						break;
+					case API_HIT_ENTRY_CHPASS:
+						$this->do_entry_change_pass();
+						break;	
+					case API_HIT_ENTRY_RESTAPI:
+						debug("hit() : INFO : will use the REST-API-ROUTING!");
+						break;
+					case API_HIT_ENTRY_SESSION:
+						$this->do_entry_session();
+						break;					
+					case API_HIT_ENTRY_SID:
+						$this->do_entry_sid();
+						break;					
+					case API_HIT_SIGN_OUT:
+						$this->do_sign_out();
+						break;	
+					case API_HIT_CSV_DUMP:
+						$this->do_csv_dump();
+						break;	
+					case API_HIT_WORD_ENC:
+						$this->do_word_shuffle(1);
+						break;
+					case API_HIT_WORD_DEC:
+						$this->do_word_shuffle(0);
+						break;	
+					case API_HIT_RESET_PASS:
+						$this->do_entry_reset_pass();
+						break;	
+					case API_HIT_ENTRY_CHMAIL:
+						$this->do_entry_change_email();
+						break;	
+					//notfound
+					default:	
+						$this->send_reply($this->notfound());
+				}
+		} 
+		catch (Exception $e) 
 		{
-			case API_HIT_SIGN_IN:
-				$this->do_sign_in();
-				break;
-			case API_HIT_ENTRY_SEARCH:
-				$this->do_entry_search();
-				break;
-			case API_HIT_ENTRY_LIST:
-				$this->do_entry_list();
-				break;
-			case API_HIT_ENTRY_MEMBER:
-				$this->do_entry_member();
-				break;
-			case API_HIT_ENTRY_UPDATE:
-			    $this->do_entry_update();
-				break;
-			case API_HIT_ENTRY_ADD:
-				$this->do_entry_add();
-				break;
-			case API_HIT_ENTRY_CHPASS:
-				$this->do_entry_change_pass();
-				break;	
-			case API_HIT_ENTRY_RESTAPI:
-			    debug("hit() : INFO : will use the REST-API-ROUTING!");
-				break;
-			case API_HIT_ENTRY_SESSION:
-				$this->do_entry_session();
-				break;					
-			case API_HIT_ENTRY_SID:
-				$this->do_entry_sid();
-				break;					
-			case API_HIT_SIGN_OUT:
-				$this->do_sign_out();
-				break;	
-			case API_HIT_CSV_DUMP:
-				$this->do_csv_dump();
-				break;	
-			case API_HIT_WORD_ENC:
-				$this->do_word_shuffle(1);
-				break;
-			case API_HIT_WORD_DEC:
-				$this->do_word_shuffle(0);
-				break;	
-			case API_HIT_RESET_PASS:
-				$this->do_entry_reset_pass();
-				break;				
-			//notfound
-			default:	
-				$this->send_reply($this->notfound());
-		}
-		
+			$dmp = @var_export($e->getMessage(),1);
+			debug("hit() : EXCEPTION : [ $dmp; ]");
+			
+			$this->send_reply($this->notfound(
+						HTTP_SERVICE_UNAVAILABLE,
+						"LDAP-API: Method not found ($dmp)!"
+					));
+			
+		}	
 	}	
 
 
@@ -319,7 +349,24 @@ class LDAP_Api{
 	{
 		$dmp = @var_export($reply,1);
 		debug("send_reply() : INFO : [ $dmp; ]");
-		echo json_encode($reply);
+		
+		//header status
+		if($this->ShowStatCode)
+		{
+			//slim
+			$code = ($reply['statuscode'] > 0) ? ($reply['statuscode']) :(REST_RESP_510);
+
+			//send header
+			$this->SLIM->response->setStatus($code);
+			
+		}
+		
+		//show message
+		if($this->ShowResults)
+		{
+			echo json_encode($reply);
+		}
+			
 	}
 
 	
@@ -335,7 +382,7 @@ class LDAP_Api{
 	//login
 	protected function do_sign_in()
 	{
-		global $_API_KEYS;
+			global $_API_KEYS;
 		
 			//get params
 			$user   = trim($_REQUEST['user']);
@@ -347,7 +394,7 @@ class LDAP_Api{
 			if( !strlen($user) or !strlen($pass) )
 			{
 				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
 				$reply['message']    = "Invalid parameters!";
 				//give it back
 				$this->send_reply($reply);
@@ -355,30 +402,6 @@ class LDAP_Api{
 				return;
 			}
 
-			
-
-			if('dont' == 'use')
-			{
-					//get map
-					$map = $this->MapGroup->get($cn);
-					
-					//chk if invalid group -> 404::HTTP_NOT_FOUND
-					if(! $this->MapGroup->is_group_valid($cn) or null == $map)
-					{
-						//fmt reply 404
-						$reply['statuscode'] = HTTP_NOT_FOUND;
-						$reply['message']    = "CN not found!";
-						//give it back
-						$this->send_reply($reply);
-						
-						return;
-						
-					}
-					//log
-					$tmf = @var_export($map,1);
-					debug("map> $tmf");
-			}
-			
 			
 			//chk email
 			$bdata = $this->ldap_user_get_by_userid($user);
@@ -393,35 +416,56 @@ class LDAP_Api{
 			}
 			$dmp = @var_export($bdata,1);				
 			debug("DB-RROW> $dmp");
+
+			//disabled
+			if(@intval($bdata['data']['status']) <= 0)
+			{
+					//fmt reply 404
+					$reply['statuscode'] = HTTP_NOT_FOUND;
+					$reply['message']    = "User is found in db but is disabled!";
+					//give it back
+					$this->send_reply($reply);
+					return;
+			}
 			
 			//get list
 			$uidlist   = array();
+			$CNlist    = array();
 			if(strlen($bdata['data']['tm'])>0      )
 			{
 				$uidlist[$this->MapGroup->LDAP_GRP_TRAVEL_MART] = trim($bdata['data']['tm']);
+				$CNlist[] = $this->MapGroup->LDAP_GRP_TRAVEL_MART;
 			}
 			if(strlen($bdata['data']['mstr'])>0    )
 			{
 				$uidlist[$this->MapGroup->LDAP_GRP_MSTR] = trim($bdata['data']['mstr']);
+				$CNlist[] = $this->MapGroup->LDAP_GRP_MSTR;
 			}
 			if(strlen($bdata['data']['rclcrew'])>0 )
 			{
 				$uidlist[$this->MapGroup->LDAP_GRP_RCLREW] = trim($bdata['data']['rclcrew']);
+				$CNlist[] = $this->MapGroup->LDAP_GRP_RCLREW;
 			}
 			if(strlen($bdata['data']['ctrac'])>0   )
 			{
 				$uidlist[$this->MapGroup->LDAP_GRP_CTRACK_EMPLOYEE]  = trim($bdata['data']['ctrac']);
+				$CNlist[] = $this->MapGroup->LDAP_GRP_CTRACK_EMPLOYEE;
 			}
 			if(strlen($bdata['data']['ctrac_app'])>0   )
 			{
 				$uidlist[$this->MapGroup->LDAP_GRP_CTRACK_APPLICANT] = trim($bdata['data']['ctrac_app']);
+				$CNlist[] = $this->MapGroup->LDAP_GRP_CTRACK_APPLICANT;
 			}
+			
 			$dmp = @var_export($uidlist,1);				
 			debug("UIDLIST> $dmp");
 
-			
+			$dmp = @var_export($CNlist,1);				
+			debug("CNlist> $dmp");
+
 			//log
-			$res = $this->try_ldap(LDAP_NORMAL_USER, $user,$pass,LDAP_RDN_GROUPS);
+			$rw_id = $bdata['data']['rw_id'];
+			$res   = $this->try_ldap(LDAP_NORMAL_USER, $rw_id,$pass,LDAP_RDN_GROUPS);
 			if(!$res['ldapstat'])
 			{
 				$this->send_reply($res['ldapmesg']);
@@ -429,22 +473,11 @@ class LDAP_Api{
 				return;
 				
 			}
-			
-			//chk the CN
-			$ldapfilter = sprintf("(mail=%s)",$bdata['data']['email']);  
-			
-			//get member of
-			debug("filter> $ldapfilter");
-			$srch   = $this->try_ldap(LDAP_ADMIN_USER);
-			$resp   = $this->try_filter($srch['ldapconn'],$ldapfilter,null);		
-			$member = $resp['result']['member'];
-			$dmp    = @var_export($resp,1);
-			debug("memberof> $dmp");
-
+	
 			//unset all active
-			for($i=0; $i < @count($member); $i++)
+			for($i=0; $i < @count($CNlist); $i++)
 			{
-				 $cn   = $member[$i];
+				 $cn   = $CNlist[$i];
 				 $xuser= (strlen($uidlist[$cn])>0) ? ($uidlist[$cn]) : ($user);
 				 $this->unset_session_db_by($xuser,$cn);
 				 $this->unset_sess_id();	
@@ -453,9 +486,9 @@ class LDAP_Api{
 			//set new
 			$sids   = array();
 			$dbsess = array();
-			for($i=0; $i < @count($member); $i++)
+			for($i=0; $i < @count($CNlist); $i++)
 			{
-				 $cn   = $member[$i];
+				 $cn   = $CNlist[$i];
 				 $xuser= (strlen($uidlist[$cn])>0) ? ($uidlist[$cn]) : ($user);
 				 
 				 debug("$i.#sid> $sessk => $sid -> $user/user=$xuser;");
@@ -466,7 +499,7 @@ class LDAP_Api{
 									'sid'   => sprintf("%x-%s-%s-%x-%s",
 															  mt_rand(),
 															  md5(base64_encode(openssl_random_pseudo_bytes(512))),
-															  md5(base64_encode(openssl_random_pseudo_bytes(256))),
+															  md5(base64_encode(openssl_random_pseudo_bytes(512))),
 															  mt_rand(),
 															  substr(md5(uniqid()),0,16) ), 
 									));
@@ -536,7 +569,7 @@ class LDAP_Api{
 			if( !strlen($uid) )
 			{
 				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
 				$reply['message']    = "Invalid parameters!";
 				//give it back
 				$this->send_reply($reply);
@@ -566,60 +599,89 @@ class LDAP_Api{
 					$cn  = $map['cn'];
 			}
 
-			//default
-			$cnstr = LDAP_ENTRY_ROOT_DN;
 			
-			debug("map> $tmf ; CN=$cn -> $cnstr;");
-			
-			//connect
-			$res = $this->try_ldap(LDAP_ADMIN_USER);
-			if(!$res['ldapstat'])
+			//chk email
+			$bdata = $this->ldap_user_get_by_userid($uid);
+			if(!$bdata['exists'])
 			{
-				$this->send_reply($res['ldapmesg']);
-				return;
-				
+					//fmt reply 404
+					$reply['statuscode'] = HTTP_NOT_FOUND;
+					$reply['message']    = "User not found in db!";
+					//give it back
+					$this->send_reply($reply);
+					return;
 			}
+			
+			$dmp = @var_export($bdata,1);				
+			debug("DB-RROW> $dmp");
 
-			//get conn
-			$ldapconn = $res['ldapconn'];
-			//use for filtering
-			$ldapfilter = sprintf("(&(uid=%s))",$uid); 
-			
-			//groups != people
-			if($cn !== strtolower(LDAP_RDN_GROUP))
+			//get UID from DB
+			if($bdata['data']['rw_id'] <= 0)
 			{
-				//Groups
-				$rdn = LDAP_RDN_GROUPS;
-				
-				debug("filter>GROUPS = $rdn");
-			}
-			else
-			{
-				//People
-				$rdn = LDAP_RDN_USERS;
-				
-				debug("filter>PEOPLE = $rdn");
+					//fmt reply 404
+					$reply['statuscode'] = HTTP_NOT_FOUND;
+					$reply['message']    = "User not found in db!";
+					//give it back
+					$this->send_reply($reply);
+					return;
 			}
 			
-			//all
-			$cnf = (strlen($cn)>0) ? ($cn) : ('*');
-			$ldapfilter = sprintf("(&(cn=%s)(uid=%s))",$cnf,$uid); 
+			if(1)
+			{
+				if(strlen($bdata['data']['tm'])>0      )
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_TRAVEL_MART;
+				}
+				if(strlen($bdata['data']['mstr'])>0    )
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_MSTR;
+				}
+				if(strlen($bdata['data']['rclcrew'])>0 )
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_RCLREW;
+				}
+				if(strlen($bdata['data']['ctrac'])>0   )
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_CTRACK_EMPLOYEE;
+				}
+				if(strlen($bdata['data']['ctrac_app'])>0   )
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_CTRACK_APPLICANT;
+				}
+			}
+			
+			//return
+			$result = array(
+				'entries' => array(
+						'uid'       => $uid,
+						'cns'       => $CNlist,
+						'rwid'      => $bdata['data']['rw_id'],
+						'mail'      => $bdata['data']['email'],
+						'sn'        => sprintf("%s",$bdata['data']['lastname']),
+						'givenname' => sprintf("%s %s %s",$bdata['data']['firstname'],$bdata['data']['middlename'],$bdata['data']['lastname']),
+				),
+				'found'   => (@count($CNlist)>0)?(1):(0),
+				'member'  => $CNlist,
+			);				
+			
+			//fmt reply 200
+			$reply['statuscode'] = HTTP_NOT_FOUND;
 			
 
-			debug("filter> $ldapfilter");
-			
-			//chk it
-			$resp       = $this->try_filter($ldapconn,$ldapfilter,$rdn);		
+			//fmt reply 200
+			$reply['status']     = true;
+			$reply['statuscode'] = HTTP_SUCCESS;
+			$reply['message']    = (@count($CNlist)>0)?("Lists results found."):("Lists results NOT found.");
+			$reply['result']     = $result;
 
 			//give it back
-			$this->send_reply($resp);
-
+			$this->send_reply($reply);
+			
 			//free
 			if($ldapconn)
 			  @ldap_free_result($ldapconn);
 		
 	}
-	
 	
 	//list
 	protected function do_entry_list()
@@ -633,69 +695,49 @@ class LDAP_Api{
 			if( !strlen($cn))
 			{
 				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
 				$reply['message']    = "Invalid parameters!";
 				//give it back
 				$this->send_reply($reply);
 				return;
 			}
 
-			//sign
-			$res = $this->try_ldap(LDAP_ADMIN_USER);
-			if(!$res['ldapstat'])
+			//get paging
+			$paging  = $this->paging();
+			
+			
+			//get the list from db
+			$res    = $this->ldap_cn_user_list(
+						array(
+							'page'  => $paging['pagex'],
+							'batch' => $paging['batch'],
+							'cn'    => $cn,
+							)
+						);
+			if(!$res['exists'])
 			{
-				$this->send_reply($res['ldapmesg']);
+				//fmt reply 404
+				$reply['statuscode'] = HTTP_NOT_FOUND;
+				$reply['message']    = "No List found!";
+				//give it back
+				$this->send_reply($reply);
 				return;
-				
 			}
-
-			//chk it
-			if(strlen($cn))
-			{
-					//get map
-					$map = $this->MapGroup->get($cn);
-					
-					//chk if invalid group -> 404::HTTP_NOT_FOUND
-					if(! $this->MapGroup->is_group_valid($cn) or null == $map)
-					{
-						//fmt reply 404
-						$reply['statuscode'] = HTTP_NOT_FOUND;
-						$reply['message']    = "CN not found!";
-						//give it back
-						$this->send_reply($reply);
-						return;
-						
-					}
-
-					//log
-					$tmf = @var_export($map,1);
-					$cn  = $map['cn'];
-					debug("map> $tmf ; CN=$cn");
-			}
-			else
-			{
-					$cn = '*';
-					debug("map> CN=$cn");
-			}
-
-			//get conn
-			$ldapconn = $res['ldapconn'];
-
-			//use for filtering
-			$ldapfilter = sprintf("(cn=%s)",$cn);  
-
-			//chk it
-			$resp       = $this->try_filter($ldapconn,$ldapfilter,$map['rdn'],1);		
 			
-			//overwrite
-			$resp['result']['member'] = array();
+			//fmt reply 200
+			$reply['status']     = true;
+			$reply['statuscode'] = HTTP_SUCCESS;
+			$reply['message']    = "List(s) found!";
+			$reply['result']     = $res['data'];
+			$reply['batch']      = @intval(@count($res['data']));
 			
-			//give it back
-			$this->send_reply($resp);
-
-			//free
-			if($ldapconn)
-			  @ldap_free_result($ldapconn);
+			//paging
+			$reply['totalrows']  = $res['totalrows']['total'];
+			$reply['currpage']   = (@count($res['data'])) ? ( $paging['page']    ) : 1;
+			$reply['nextpage']   = (@count($res['data'])) ? ( $paging['page'] + 1) : 1;
+			
+			$this->send_reply($reply);
+			
 	
 	}
 	
@@ -710,6 +752,7 @@ class LDAP_Api{
 			$email     = trim($_REQUEST["email"]        );
 			$desc      = trim($_REQUEST["description"] );
 		    $cn        = strtolower(trim($_REQUEST["company"]));
+			$active    = trim($_REQUEST["active"] );
 			
 			//init
 			$reply = $this->init_resp();
@@ -725,38 +768,13 @@ class LDAP_Api{
 			)
 			{
 				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
 				$reply['message']    = "Invalid parameters!";
 				//give it back
 				$this->send_reply($reply);
 				return;
 			}
 
-			
-			if('dont' == 'run')
-			{
-					//get map
-					$map = $this->MapGroup->get($cn);
-					
-					//chk if invalid group -> 404::HTTP_NOT_FOUND
-					if(! $this->MapGroup->is_group_valid($cn) or null == $map)
-					{
-						//fmt reply 404
-						$reply['statuscode'] = HTTP_NOT_FOUND;
-						$reply['message']    = "CN not found!";
-						//give it back
-						$this->send_reply($reply);
-						return;
-						
-					}
-
-					//log
-					$tmf = @var_export($map,1);
-					debug("map> $tmf");
-			}
-
-
-			
 			//chk email
 			$bdata = $this->ldap_user_get_by_userid($user);
 			if(!$bdata['exists'])
@@ -773,7 +791,6 @@ class LDAP_Api{
 
 			
 			//conn
-			//$res = $this->try_ldap(LDAP_NORMAL_USER,$user,$pass,LDAP_RDN_GROUPS);
 			$res = $this->try_ldap(LDAP_ADMIN_USER,null,null,LDAP_ENTRY_ROOT_DN_UPD);
 			if(!$res['ldapstat'])
 			{
@@ -807,29 +824,26 @@ class LDAP_Api{
 			$ndata["lastname"]    = $lastname  ;
 			$ndata["email"]       = $bdata['data']['email'];
 			$updret               = $this->ldap_user_upd_db($ndata);
-
-
-			//get list
-			$uidlist   = array();
-			$uidlist[] = $user;
-			if(strlen($bdata['data']['tm'])>0      and ($bdata['data']['tm']      !== $user))
-					$uidlist[] = trim($bdata['data']['tm']);
-			if(strlen($bdata['data']['mstr'])>0    and ($bdata['data']['mstr']    !== $user))
-					$uidlist[] = trim($bdata['data']['mstr']);
-			if(strlen($bdata['data']['rclcrew'])>0 and ($bdata['data']['rclcrew'] !== $user))
-					$uidlist[] = trim($bdata['data']['rclcrew']);
-			if(strlen($bdata['data']['ctrac'])>0   and ($bdata['data']['ctrac']   !== $user))
-					$uidlist[] = trim($bdata['data']['ctrac']);
-			if(strlen($bdata['data']['ctrac_app'])>0   and ($bdata['data']['ctrac_app']   !== $user))
-					$uidlist[] = trim($bdata['data']['ctrac_app']);
-
 			
-			$dmp = @var_export($uidlist,1);
-			debug("LIST-OF-CNS-UID>$dmp;");
-			foreach($uidlist as $kk => $vv)
+			//get userid
+			$user = $bdata['data']['rw_id'];
+			if($user <= 0)
+			{
+					//fmt reply 403
+					$reply['status']     = false;
+					$reply['statuscode'] = HTTP_FORBIDDEN;
+					$reply['message']    = "Update db entry failed.";
+					$reply['error']      = $this->fmt_err_msg($ldapconn);
+					//give it back
+					$this->send_reply($reply);
+					return;
+			}
+			
+			//modify ldap
+			if(1)
 			{
 						//GROUPS
-						$ldaprdn                 = sprintf("uid=%s,%s",$vv,LDAP_RDN_GROUPS);  
+						$ldaprdn                 = sprintf("uid=%s,%s",$user,LDAP_RDN_GROUPS);  
 						debug("[$kk] UPDATE/MODIFY> DN=$ldaprdn;");		
 						
 						//update entry
@@ -846,7 +860,18 @@ class LDAP_Api{
 								return;
 						}
 			}
-
+			//active-status-flag
+			if(@preg_match("/^(0|1)$/", $active))
+			{
+					$upd = $this->ldap_user_upd_activeflag_db(
+										array(
+											'status' => @intval($active),
+											'rw_id'  => $bdata['data']['rw_id'],
+											)
+									);
+					debug("[ACTIVE-FLAG] > set = $active;#$upd");	
+			}
+			
 			//fmt reply 200
 			$reply['status']     = true;
 			$reply['statuscode'] = HTTP_SUCCESS;
@@ -886,7 +911,7 @@ class LDAP_Api{
 			)
 			{
 				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
 				$reply['message']    = "Invalid parameters!";
 				if(strlen($newpass) and ($pass === $newpass))
 				{
@@ -897,28 +922,6 @@ class LDAP_Api{
 				return;
 			}
 
-			if('dont' == 'run')
-			{
-					//get map
-					$map = $this->MapGroup->get($cn);
-					
-					//chk if invalid group -> 404::HTTP_NOT_FOUND
-					if(! $this->MapGroup->is_group_valid($cn) or null == $map)
-					{
-						//fmt reply 404
-						$reply['statuscode'] = HTTP_NOT_FOUND;
-						$reply['message']    = "CN not found!";
-						//give it back
-						$this->send_reply($reply);
-						return;
-						
-					}
-
-					//log
-					$tmf = @var_export($map,1);
-					debug("map> $tmf");
-			}
-
 			//chk email
 			$bdata = $this->ldap_user_get_by_userid($user);
 			if(!$bdata['exists'])
@@ -926,6 +929,18 @@ class LDAP_Api{
 					//fmt reply 404
 					$reply['statuscode'] = HTTP_NOT_FOUND;
 					$reply['message']    = "User not found in db!";
+					//give it back
+					$this->send_reply($reply);
+					return;
+			}
+			
+			//passed pwd
+			$encpass = $this->str_enc($pass);
+			if($bdata['data']['passwd'] !== $encpass)
+			{
+					//fmt reply 404
+					$reply['statuscode'] = HTTP_NOT_FOUND;
+					$reply['message']    = "Wrong Current password!";
 					//give it back
 					$this->send_reply($reply);
 					return;
@@ -951,27 +966,13 @@ class LDAP_Api{
 			$dmp = @var_export($bdata,1);				
 			debug("DB-RROW> $dmp");
 
-			//get list
-			$uidlist   = array();
-			$uidlist[] = $user;
-			if(strlen($bdata['data']['tm'])>0      and ($bdata['data']['tm']      !== $user))
-					$uidlist[] = trim($bdata['data']['tm']);
-			if(strlen($bdata['data']['mstr'])>0    and ($bdata['data']['mstr']    !== $user))
-					$uidlist[] = trim($bdata['data']['mstr']);
-			if(strlen($bdata['data']['rclcrew'])>0 and ($bdata['data']['rclcrew'] !== $user))
-					$uidlist[] = trim($bdata['data']['rclcrew']);
-			if(strlen($bdata['data']['ctrac'])>0   and ($bdata['data']['ctrac']   !== $user))
-					$uidlist[] = trim($bdata['data']['ctrac']);
-			if(strlen($bdata['data']['ctrac_app'])>0   and ($bdata['data']['ctrac_app']   !== $user))
-					$uidlist[] = trim($bdata['data']['ctrac_app']);
-
-			$dmp = @var_export($uidlist,1);
-			debug("LIST-OF-CNS-UID>$dmp;");
-	
-			foreach($uidlist as $kk => $vv)
+			//get userid
+			$user = $bdata['data']['rw_id'];
+			
+			if(1)
 			{
 				    //GROUPS
-					$ldaprdn  = sprintf("uid=%s,%s",$vv,LDAP_RDN_GROUPS);  
+					$ldaprdn  = sprintf("uid=%s,%s",$user,LDAP_RDN_GROUPS);  
 					
 					$dmp = @var_export($info,1);				
 					debug("$kk> CHANGE-PASS > DN=$ldaprdn; [ $dmp ]");
@@ -990,7 +991,6 @@ class LDAP_Api{
 							$this->send_reply($reply);
 							return;
 					}
-					
 			}
 
 			//update password, use the parameter
@@ -1029,7 +1029,6 @@ class LDAP_Api{
 			$cn        = strtolower(trim($_REQUEST["company"]));
 
 
-
 			//init
 			$reply     = $this->init_resp();
 
@@ -1048,7 +1047,7 @@ class LDAP_Api{
 			)
 			{
 				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
 				$reply['message']    = "Invalid parameters!";
 				
 				//give it back
@@ -1056,6 +1055,22 @@ class LDAP_Api{
 				return;
 			}
 
+			
+			//chk email + and userid
+			$bdata = $this->ldap_user_get_by_userid($user);
+			if( ( $bdata['exists'] and $chkmail['exists'] )
+				and
+			    ( $email !== $bdata['data']['email'] )
+			)
+			{
+					//fmt reply 406
+					$reply['statuscode'] = REST_RESP_406;
+					$reply['message']    = "User exists already in db!";
+					//give it back
+					$this->send_reply($reply);
+					return;
+			}
+			
 			//conn
 			$res = $this->try_ldap(LDAP_ADMIN_USER,null,null,LDAP_ENTRY_ROOT_DN_ADD);
 			if(!$res['ldapstat'])
@@ -1087,189 +1102,49 @@ class LDAP_Api{
 			//get conn
 			$ldapconn                = $res['ldapconn'];
 
-			/**
-			objectClass: top
-			objectClass: person
-			objectClass: organizationalPerson
-			objectClass: inetorgperson
-			sn: Aplicant3
-			cn: Aplicant3 Complet3
-			givenName
-			**/
 
-			// prepare data
-			$info["uid"]             = $user;
-			$info["mail"]            = $email;
-			$info["sn"]              = $lastname;
-			$info["givenName"]       = sprintf("%s %s %s",$firstname, $middlename,$lastname);
-			$info["cn"]              = $map['cn'];
-			$info["objectClass"][]   = $map['objectClass'][0];
-			$info["objectClass"][]   = $map['objectClass'][1];
-			$info["objectClass"][]   = $map['objectClass'][2];
-			$info["objectClass"][]   = $map['objectClass'][3];
-			$info["description"]     = $desc;
-			$info["userPassword"]    = '{md5}' . base64_encode(pack('H*', md5($pass)));
-			$ldaprdn                 = sprintf("uid=%s,%s",$user,$map['rdn']);  
-			
-			debug("ldaprdn> $ldaprdn");
-			
-			//chk the CN
-			$ldapfilter = sprintf("(uid=%s)",$user);  
-
-			//chk it
-			debug("filter> $ldapfilter");
-			$srch = $this->try_ldap(LDAP_ADMIN_USER);
-			$resp = $this->try_filter($srch['ldapconn'],$ldapfilter,null);		
-			$dmp  = @var_export($resp,1);
-			debug("memberof> $dmp");
-			
 			//get all CN from DB-RROW
 			$CNlist    = array();
 			$UIDlist   = array();
 			if($chkmail['exists']>0)
 			{
-				$rawstr                  = $this->str_dec($chkmail['data']['passwd']);
-				$info["userPassword"]    = '{md5}'. $chkmail['data']['passwd'];
-				$info["userPassword"]    = "$rawstr";
-				$dmp = @var_export($info["userPassword"],1);
-				debug("WILL USE THE OLD PWD> $dmp");
-				
 				if(strlen($chkmail['data']['tm'])>0      )
 				{
 					$CNlist[] = $this->MapGroup->LDAP_GRP_TRAVEL_MART;
-					if($user !== $chkmail['data']['tm'])
-						$UIDlist[] = $chkmail['data']['tm'];
 				}
 				if(strlen($chkmail['data']['mstr'])>0    )
 				{
 					$CNlist[] = $this->MapGroup->LDAP_GRP_MSTR;
-					if($user !== $chkmail['data']['mstr'])
-						$UIDlist[] = $chkmail['data']['mstr'];
-
 				}
 				if(strlen($chkmail['data']['rclcrew'])>0 )
 				{
 					$CNlist[] = $this->MapGroup->LDAP_GRP_RCLREW;
-					if($user !== $chkmail['data']['rclcrew'])
-						$UIDlist[] = $chkmail['data']['rclcrew'];
 				}
 				if(strlen($chkmail['data']['ctrac'])>0   )
 				{
 					$CNlist[] = $this->MapGroup->LDAP_GRP_CTRACK_EMPLOYEE;
-					if($user !== $chkmail['data']['ctrac'])
-						$UIDlist[] = $chkmail['data']['ctrac'];
 				}
 				if(strlen($chkmail['data']['ctrac_app'])>0   )
 				{
 					$CNlist[] = $this->MapGroup->LDAP_GRP_CTRACK_APPLICANT;
-					if($user !== $chkmail['data']['ctrac_app'])
-						$UIDlist[] = $chkmail['data']['ctrac_app'];
 				}
 				
-				$dmp = @var_export($UIDlist,1);
-				debug("DB UID List> $dmp");
-				
-				$dmp = @var_export($CNlist,1);
-				debug("DB CN List> $dmp");
 			}
 			
-			//chk it
-			//chk the CN
-			$ldapfilter = sprintf("(uid=%s)",$user);
-			debug("filter> $ldapfilter");
-			$srch = $this->try_ldap(LDAP_ADMIN_USER);
-			$resp = $this->try_filter($srch['ldapconn'],$ldapfilter,null);
-			$dmp  = @var_export($resp,1);
-			debug("memberof> $dmp");
-
-			//not found
-			if(!@count($resp['result']['member']))
+			$dmp = @var_export($CNlist,1);
+			debug("DB CN List> $dmp");
+			
+			//exists already
+			if(@in_array($cn,$CNlist) and @count($CNlist))
 			{
-				    $dmp = @var_export($info,1);
-					debug("THIS IS A NEW USER from LDAP> $dmp");
-					
-					//new entry
-					$update  = ldap_add($ldapconn, $ldaprdn, $info);
-					if(!$update)
-					{
-							//fmt reply 403
-							$reply['status']     = false;
-							$reply['statuscode'] = HTTP_FORBIDDEN;
-							$reply['message']    = "LDAP user add failed.";
-							$reply['error']      = $this->fmt_err_msg($ldapconn);
-							//give it back
-							$this->send_reply($reply);
-							return;
-					}
-			}
-			else
-			{
-				//chk if its there?
-				if (in_array($map['cn'], $resp['result']['member']) )
-				{
-						//fmt reply 405
-						$reply['status']     = false;
-						$reply['statuscode'] = HTTP_METHOD_NOT_ALLOWED;
-						$reply['message']    = "LDAP user/modify add failed (CN Already Exists).";
-						$reply['error']      = null;
-						//give it back
-						$this->send_reply($reply);
-						return;
-				}
-				else
-				{
-						//only-add the CN
-						$cnlist     = array_merge(array($map['cn']),$resp['result']['member']);
-						$info["cn"] = $cnlist;
-						$dmp = @var_export($cnlist,1);
-						debug("CNS> $dmp");
-						
-						//modify
-						$update  = ldap_modify($ldapconn, $ldaprdn, $info);
-						if(!$update)
-						{
-								//fmt reply 403
-								$reply['status']     = false;
-								$reply['statuscode'] = HTTP_FORBIDDEN;
-								$reply['message']    = "LDAP user/modify add failed.";
-								$reply['error']      = $this->fmt_err_msg($ldapconn);
-								//give it back
-								$this->send_reply($reply);
-								return;
-						}
-						
-						//uidlist must be same password
-						foreach($UIDlist as $kk => $vv)
-						{
-								//GROUPS
-								$ldaprdn  = sprintf("uid=%s,%s",$vv,LDAP_RDN_GROUPS);  
-								//only change the LDAP attribute.passwd
-								$pinfo["userPassword"] = $info["userPassword"] ;
-
-								$dmp = @var_export($pinfo,1);				
-								debug("$kk> CHANGE-PASS > DN=$ldaprdn; [ $dmp ]");
-
-								if('no' == 'need this')
-								{
-										
-										//update entry
-										$update  = ldap_modify($ldapconn, $ldaprdn, $pinfo);
-										if(!$update)
-										{
-												//fmt reply 403
-												$reply['status']     = false;
-												$reply['statuscode'] = HTTP_FORBIDDEN;
-												$reply['message']    = "Update password failed.";
-												$reply['error']      = $this->fmt_err_msg($ldapconn);
-
-												//give it back
-												$this->send_reply($reply);
-												return;
-										}
-								}
-
-						}
-				}
+				//fmt reply 405
+				$reply['status']     = false;
+				$reply['statuscode'] = HTTP_METHOD_NOT_ALLOWED;
+				$reply['message']    = "LDAP add failed (CN Already Exists).";
+				$reply['error']      = null;
+				//give it back
+				$this->send_reply($reply);
+				return;
 			}
 
 			//db dip here
@@ -1281,6 +1156,9 @@ class LDAP_Api{
 			//sanity check
 			if($chkmail['exists']>0)
 			{
+				//auto-inc-id
+				$rawuid = $chkmail['data']['raw_id'];
+				
 				//update details?
 				$nret = $this->ldap_user_upd_db($ndata);
 				
@@ -1313,8 +1191,21 @@ class LDAP_Api{
 				}
 				
 				//run
-				$aret = $this->ldap_user_add_db($ndata);
-
+				$RAW_UID = $this->ldap_user_add_db($ndata);
+				
+				//oops
+				if($RAW_UID <= 0 )
+				{
+						//fmt reply 405
+						$reply['status']     = false;
+						$reply['statuscode'] = HTTP_METHOD_NOT_ALLOWED;
+						$reply['message']    = "LDAP DB add failed.";
+						$reply['error']      = null;
+						//give it back
+						$this->send_reply($reply);
+						return;
+				}
+				
 				//update password, use the parameter
 				$ndata['email' ] = $email     ;
 				$ndata['pass']   = base64_encode(pack('H*', md5($pass)));
@@ -1324,15 +1215,88 @@ class LDAP_Api{
 				
 				//add
 				$reply['message'] = "LDAP user add successful.";
-			}
+				
+				
+				//LDAP-ADD here
+				if('LDAP-ADD' == 'LDAP-ADD')
+				{
+						//get all mapping
+						$mapx = $this->MapGroup->get($this->MapGroup->LDAP_GRP_RCCL);
+						/**
+						objectClass: top
+						objectClass: person
+						objectClass: organizationalPerson
+						objectClass: inetorgperson
+						sn: Aplicant3
+						cn: Aplicant3 Complet3
+						givenName
+						**/
+						
+						// prepare data
+						$user                    = $RAW_UID;
+						$info["uid"]             = $user;
+						$info["mail"]            = $email;
+						$info["sn"]              = $lastname;
+						$info["givenName"]       = sprintf("%s %s %s",$firstname, $middlename,$lastname);
+						$info["cn"]              = $mapx['cn'];
+						$info["objectClass"][]   = $mapx['objectClass'][0];
+						$info["objectClass"][]   = $mapx['objectClass'][1];
+						$info["objectClass"][]   = $mapx['objectClass'][2];
+						$info["objectClass"][]   = $mapx['objectClass'][3];
+						$info["description"]     = $desc;
+						$info["userPassword"]    = '{md5}' . base64_encode(pack('H*', md5($pass)));
+						$ldaprdn                 = sprintf("uid=%s,%s",$user,$mapx['rdn']);  
 
+						debug("ldaprdn> $ldaprdn");
+						
+						//chk the CN
+						$ldapfilter = sprintf("(uid=%s)",$user);
+						debug("filter> $ldapfilter");
+						$srch = $this->try_ldap(LDAP_ADMIN_USER);
+						$resp = $this->try_filter($srch['ldapconn'],$ldapfilter,null);
+						$dmp  = @var_export($resp,1);
+						debug("memberof> $dmp");
+
+						//is found
+						if(@count($resp['result']['member']) > 0 )
+						{
+								//fmt reply 405
+								$reply['status']     = false;
+								$reply['statuscode'] = HTTP_METHOD_NOT_ALLOWED;
+								$reply['message']    = "LDAP add failed (UID Already Exists in LDAP Server).";
+								$reply['error']      = null;
+								//give it back
+								$this->send_reply($reply);
+								return;
+						}
+						
+						$dmp = @var_export($info,1);
+						debug("THIS IS A NEW USER from LDAP> $dmp");
+
+						//new entry
+						$update  = ldap_add($ldapconn, $ldaprdn, $info);
+						if(!$update)
+						{
+									//fmt reply 403
+									$reply['status']     = false;
+									$reply['statuscode'] = HTTP_FORBIDDEN;
+									$reply['message']    = "LDAP user add failed.";
+									$reply['error']      = $this->fmt_err_msg($ldapconn);
+
+									//give it back
+									$this->send_reply($reply);
+									return;
+						}
+
+				}//LDAP-ADD
+				
+			}
 			
 			//fmt reply 200
 			$reply['status']     = true;
 			$reply['statuscode'] = HTTP_SUCCESS;
 			$reply['result']     = array(
-								 );
-
+										);
 			//give it back
 			$this->send_reply($reply);
 
@@ -1354,38 +1318,94 @@ class LDAP_Api{
 			if( !strlen($user))
 			{
 				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
 				$reply['message']    = "Invalid parameters!";
 				//give it back
 				$this->send_reply($reply);
 				return;
 			}
 
-			//sign
-			$res = $this->try_ldap(LDAP_ADMIN_USER);
-			if(!$res['ldapstat'])
+						//chk email
+			$bdata = $this->ldap_user_get_by_userid($user);
+			if(!$bdata['exists'])
 			{
-				$this->send_reply($res['ldapmesg']);
-				return;
-				
+					//fmt reply 404
+					$reply['statuscode'] = HTTP_NOT_FOUND;
+					$reply['message']    = "User not found in db!";
+					//give it back
+					$this->send_reply($reply);
+					return;
 			}
-
-			//get conn
-			$ldapconn = $res['ldapconn'];
-
-			//use for filtering
-			$ldapfilter = sprintf("(uid=%s)",$user);  
-
-			//chk it
-			$resp       = $this->try_filter($ldapconn,$ldapfilter,$map['rdn']);		
 			
-			//give it back
-			$this->send_reply($resp);
+			$dmp = @var_export($bdata,1);				
+			debug("DB-RROW> $dmp");
 
+			//get UID from DB
+			if($bdata['data']['rw_id'] <= 0)
+			{
+					//fmt reply 404
+					$reply['statuscode'] = HTTP_NOT_FOUND;
+					$reply['message']    = "User not found in db!";
+					//give it back
+					$this->send_reply($reply);
+					return;
+			}
+			
+			if(1)
+			{
+				if(strlen($bdata['data']['tm'])>0      )
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_TRAVEL_MART;
+				}
+				if(strlen($bdata['data']['mstr'])>0    )
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_MSTR;
+				}
+				if(strlen($bdata['data']['rclcrew'])>0 )
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_RCLREW;
+				}
+				if(strlen($bdata['data']['ctrac'])>0   )
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_CTRACK_EMPLOYEE;
+				}
+				if(strlen($bdata['data']['ctrac_app'])>0   )
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_CTRACK_APPLICANT;
+				}
+			}
+			
+			//return
+			$result = array(
+				'entries' => array(
+						'uid'       => $user,
+						'cns'       => $CNlist,
+						'rwid'      => $bdata['data']['rw_id'],
+						'mail'      => $bdata['data']['email'],
+						'sn'        => sprintf("%s",$bdata['data']['lastname']),
+						'givenname' => sprintf("%s %s %s",$bdata['data']['firstname'],$bdata['data']['middlename'],$bdata['data']['lastname']),
+				),
+				'found'   => (@count($CNlist)>0)?(1):(0),
+				'member'  => $CNlist,
+			);				
+			
+			//fmt reply 200
+			$reply['statuscode'] = HTTP_NOT_FOUND;
+			
+
+			//fmt reply 200
+			$reply['status']     = true;
+			$reply['statuscode'] = HTTP_SUCCESS;
+			$reply['message']    = (@count($CNlist)>0)?("Member list results found."):("Member list results NOT found.");
+			$reply['result']     = $result;
+
+			//give it back
+			$this->send_reply($reply);
+			
 			//free
 			if($ldapconn)
 			  @ldap_free_result($ldapconn);
-	
+		
 	}
 	
 	//session
@@ -1401,7 +1421,7 @@ class LDAP_Api{
 			if( !strlen($user) )
 			{
 				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
 				$reply['message']    = "Invalid parameters!";
 				//give it back
 				$this->send_reply($reply);
@@ -1476,7 +1496,7 @@ class LDAP_Api{
 			if( !strlen($sid) )
 			{
 				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
 				$reply['message']    = "Invalid parameters!";
 				//give it back
 				$this->send_reply($reply);
@@ -1541,7 +1561,7 @@ class LDAP_Api{
 			if( !strlen($user) )
 			{
 				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
 				$reply['message']    = "Invalid parameters!";
 				//give it back
 				$this->send_reply($reply);
@@ -1605,7 +1625,7 @@ class LDAP_Api{
 			if(! isset($_FILES[API_CSV_FILEFORM]))
 			{
 				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
 				$reply['message']    = "Invalid parameters! File is empty!";
 				//give it back
 				$this->send_reply($reply);
@@ -1619,7 +1639,7 @@ class LDAP_Api{
 			if(isset($error))
 			{
 				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
 				$reply['message']    = "Upload failed. [$error]!";
 				//give it back
 				$this->send_reply($reply);
@@ -1715,7 +1735,7 @@ class LDAP_Api{
 			)
 			{
 				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
 				$reply['message']    = "Invalid parameters!";
 				//give it back
 				$this->send_reply($reply);
@@ -1751,27 +1771,15 @@ class LDAP_Api{
 			$dmp = @var_export($bdata,1);				
 			debug("DB-RROW> $dmp");
 
-			//get list
-			$uidlist   = array();
-			$uidlist[] = $user;
-			if(strlen($bdata['data']['tm'])>0      and ($bdata['data']['tm']      !== $user))
-					$uidlist[] = trim($bdata['data']['tm']);
-			if(strlen($bdata['data']['mstr'])>0    and ($bdata['data']['mstr']    !== $user))
-					$uidlist[] = trim($bdata['data']['mstr']);
-			if(strlen($bdata['data']['rclcrew'])>0 and ($bdata['data']['rclcrew'] !== $user))
-					$uidlist[] = trim($bdata['data']['rclcrew']);
-			if(strlen($bdata['data']['ctrac'])>0   and ($bdata['data']['ctrac']   !== $user))
-					$uidlist[] = trim($bdata['data']['ctrac']);
-			if(strlen($bdata['data']['ctrac_app'])>0   and ($bdata['data']['ctrac_app']   !== $user))
-					$uidlist[] = trim($bdata['data']['ctrac_app']);
-
-			$dmp = @var_export($uidlist,1);
-			debug("LIST-OF-CNS-UID>$dmp;");
-	
-			foreach($uidlist as $kk => $vv)
+			
+			//get the UID from DB
+			$user = $bdata['data']['rw_id'];
+			
+			//update ldap password
+			if(1)
 			{
 				    //GROUPS
-					$ldaprdn  = sprintf("uid=%s,%s",$vv,LDAP_RDN_GROUPS);  
+					$ldaprdn  = sprintf("uid=%s,%s",$user,LDAP_RDN_GROUPS);  
 					
 					$dmp = @var_export($info,1);				
 					debug("$kk> RESET-PASS > DN=$ldaprdn; [ $dmp ]");
@@ -1813,19 +1821,173 @@ class LDAP_Api{
 			if($ldapconn)
 			  @ldap_free_result($ldapconn);
 	}
+	
+	//reset email
+	protected function do_entry_change_email()
+	{
+			//get params
+			$user   = trim($_REQUEST['user']);
+			$email   = trim($_REQUEST['email']);
+			
+			//init
+			$reply  = $this->init_resp();
+
+			//sanity check -> LISTS
+			if(
+				!strlen($user)    or 
+				!strlen($email)    
+			)
+			{
+				//fmt reply 500
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
+				$reply['message']    = "Invalid parameters!";
+				//give it back
+				$this->send_reply($reply);
+				return;
+			}
+
+			//chk email
+			$bdata = $this->ldap_user_get_by_userid($user);
+			if(!$bdata['exists'])
+			{
+					//fmt reply 404
+					$reply['statuscode'] = HTTP_NOT_FOUND;
+					$reply['message']    = "User not found in db!";
+					//give it back
+					$this->send_reply($reply);
+					return;
+			}
+			
+			//db dip here
+			$chkmail = $this->ldap_user_get_email($email);
+			
+			$CNlist = array();
+			if($chkmail['exists'])
+			{
+				if(strlen($chkmail['data']['tm'])>0  and strlen($user)    )
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_TRAVEL_MART;
+				}
+				if(strlen($chkmail['data']['mstr'])>0  and strlen($user)    )
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_MSTR;
+				}
+				if(strlen($chkmail['data']['rclcrew'])>0 and strlen($user)  )
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_RCLREW;
+				}
+				if(strlen($chkmail['data']['ctrac'])>0   and strlen($user)  )
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_CTRACK_EMPLOYEE;
+				}
+				if(strlen($chkmail['data']['ctrac_app'])>0  and strlen($user))
+				{
+					$CNlist[] = $this->MapGroup->LDAP_GRP_CTRACK_APPLICANT;
+				}
+			}
+			
+			//same EMAIL as OLD 
+			if($chkmail['data']['email'] === $bdata['data']['email'] and @count($CNlist))
+			{
+					//fmt reply 403
+					$reply['status']     = false;
+					$reply['statuscode'] = HTTP_FORBIDDEN;
+					$reply['message']    = "Change email failed. ( Old email is the same as the New 1)";
+					
+
+					//give it back
+					$this->send_reply($reply);
+					return;
+			}
+			
+			//maybe its other's email
+			if($chkmail['exists'])
+			{
+					//fmt reply 403
+					$reply['status']     = false;
+					$reply['statuscode'] = HTTP_FORBIDDEN;
+					$reply['message']    = "Change email failed. ( Email already exists)";
+					
+					//give it back
+					$this->send_reply($reply);
+					return;
+				
+				
+			}
+			
+			//update db
+			$updret = $this->ldap_user_upd_email_db(array('email' => $email, 
+														  'rw_id' => $bdata['data']['rw_id'] ));
+			//db fail
+			if(!$updret)
+			{
+					//fmt reply 403
+					$reply['status']     = false;
+					$reply['statuscode'] = HTTP_FORBIDDEN;
+					$reply['message']    = "Change email failed. ( Db update failed )";
+					//give it back
+					$this->send_reply($reply);
+					return;
+			}														  
+
+			//update ldap email
+			if('ldap-change-mail' == 'ldap-change-mail-X')
+			{
+					// prepare data
+					$info["mail"]  = $email;
+
+				    //GROUPS
+					$ldaprdn  = sprintf("uid=%s,%s",$user,LDAP_RDN_GROUPS);  
+					
+					$dmp = @var_export($info,1);				
+					debug("$kk> RESET-PASS > DN=$ldaprdn; [ $dmp ]");
+			
+					//update entry
+					$update  = ldap_modify($ldapconn, $ldaprdn, $info);
+					if(!$update)
+					{
+							//fmt reply 403
+							$reply['status']     = false;
+							$reply['statuscode'] = HTTP_FORBIDDEN;
+							$reply['message']    = "Change email failed (LDAP server update).";
+							$reply['error']      = $this->fmt_err_msg($ldapconn);
+							
+							//give it back
+							$this->send_reply($reply);
+							return;
+					}
+					
+			}
+
+
+			//fmt reply 200
+			$reply['status']     = true;
+			$reply['statuscode'] = HTTP_SUCCESS;
+			$reply['message']    = "Email change successful.";
+			$reply['result']     = array(
+								 );
+			//give it back
+			$this->send_reply($reply);
+
+			//free
+			if($ldapconn)
+			  @ldap_free_result($ldapconn);
+	}
+	
 	//encrypt decrypt
 	protected function do_word_shuffle($shuffle=1)
 	{
 			//get params
 			$word  = trim($_REQUEST['word']);
+			$user  = trim($_REQUEST['user']);
 			
 			$reply = $this->init_resp();
 
 			//sanity check -> LISTS
-			if( !strlen($word) )
+			if( !strlen($word) and !strlen($user) )
 			{
 				//fmt reply 500
-				$reply['statuscode'] = HTTP_INTERNAL_SERVER_ERROR;
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
 				$reply['message']    = "Invalid parameters!";
 				//give it back
 				$this->send_reply($reply);
@@ -1843,8 +2005,45 @@ class LDAP_Api{
 			}
 			else
 			{
-				//decrypt the word
-				$res    			 = $this->str_dec($word);
+				//get hash from db
+				if(strlen($user)>0)
+				{
+					//chk email
+					$bdata = $this->ldap_user_get_by_userid($user);
+					if(!$bdata['exists'])
+					{
+							//fmt reply 404
+							$reply['statuscode'] = HTTP_NOT_FOUND;
+							$reply['message']    = "User not found in db! Cannot decrypt it.";
+							//give it back
+							$this->send_reply($reply);
+							return;
+					}
+					$dmp = @var_export($bdata,1);				
+					debug("DB-RROW> $dmp");
+					
+					//decrypt the word
+					$res    			 = $this->str_dec($bdata['data']['passwd']);
+				}
+				else
+				{
+					//decrypt the word
+					$res    			 = $this->str_dec($word);
+				}
+
+				if(!strlen($res))
+				{
+						//fmt reply 404
+						$reply['statuscode'] = HTTP_NOT_FOUND;
+						$reply['message']    = "Cannot decrypt it.";
+						$reply['word']       = $res; 
+						
+						//give it back
+						$this->send_reply($reply);
+						return;
+				}
+				
+				//reply
 				$reply['message']    = "Word successfully un-shuffled.";
 				$reply['word']       = $res; 
 			}
@@ -1854,8 +2053,6 @@ class LDAP_Api{
 			$reply['statuscode'] = HTTP_SUCCESS;
 			$reply['result']     = array(
 								 );
-			
-
 			//free memory
 			$this->unset_sess_id();	
 			
@@ -2479,7 +2676,7 @@ class LDAP_Api{
 					  mstr       = '$user' or
 					  ctrac      = '$user' or
 					  ctrac_app  = '$user' 
-					  )
+					  ) AND LENGTH(IFNULL('$user','')) > 0
 					LIMIT 1 ";
 		
 		$res   = $gSqlDb->query($sql, "ldap_user_get_by_userid() : ERROR : $sql");
@@ -2507,7 +2704,262 @@ class LDAP_Api{
 		return $sdata;
 		
 	}
+
+	//get data
+	protected function ldap_cn_user_list($pdata=array())
+	{
+		//globals here
+		global $gSqlDb;
+
+		debug("ldap_user_upd_cn_db() : INFO");
+		
+		//fmt-params
+		$cn    = addslashes(trim($pdata['cn'   ]));
+		$pg    = addslashes(trim($pdata['page' ]));
+		$mx    = addslashes(trim($pdata['batch']));
+		$limit = " LIMIT $pg, $mx ";
+		
+		debug("ldap_cn_user_list() : CN GROUP> $cn; $limit;#");
+		
+		switch(strtolower($cn) )
+		{
+				case $this->MapGroup->LDAP_GRP_TRAVEL_MART      :
+					$sql   = "SELECT SQL_CALC_FOUND_ROWS 
+								rw_id          ,			
+								firstname      ,
+								middlename     ,
+								lastname       ,
+								email          ,
+								status         ,
+								group_name     ,
+								creation_date  ,
+								tm             ,
+								is_migrated    ,
+								login_attempts ,
+								user_role       
+							FROM sso_users  
+							WHERE 
+								LENGTH(IFNULL(tm,'')) > 0 
+							ORDER BY rw_id
+							$limit
+							";
+					break;
+				case $this->MapGroup->LDAP_GRP_RCLREW           :
+					$sql   = "SELECT SQL_CALC_FOUND_ROWS 
+								rw_id          ,			
+								firstname      ,
+								middlename     ,
+								lastname       ,
+								email          ,
+								status         ,
+								group_name     ,
+								creation_date  ,
+								rclcrew        ,
+								is_migrated    ,
+								login_attempts ,
+								user_role       
+							FROM sso_users  
+							WHERE 
+								LENGTH(IFNULL(rclcrew,'')) > 0 
+							ORDER BY rw_id
+							$limit
+							";
+					
+					break;
+				case $this->MapGroup->LDAP_GRP_MSTR             :
+					$sql   = "SELECT SQL_CALC_FOUND_ROWS 
+								rw_id          ,			
+								firstname      ,
+								middlename     ,
+								lastname       ,
+								email          ,
+								status         ,
+								group_name     ,
+								creation_date  ,
+								mstr           ,
+								is_migrated    ,
+								login_attempts ,
+								user_role       
+							FROM sso_users  
+							WHERE 
+								LENGTH(IFNULL(mstr,'')) > 0 
+							ORDER BY rw_id
+							$limit
+							";
+					
+					break;
+				case $this->MapGroup->LDAP_GRP_CTRACK_EMPLOYEE  :
+					$sql   = "SELECT SQL_CALC_FOUND_ROWS 
+								rw_id          ,			
+								firstname      ,
+								middlename     ,
+								lastname       ,
+								email          ,
+								status         ,
+								group_name     ,
+								creation_date  ,
+								ctrac          ,
+								is_migrated    ,
+								login_attempts ,
+								user_role      
+							FROM sso_users  
+							WHERE 
+								LENGTH(IFNULL(ctrac,'')) > 0 
+							ORDER BY rw_id
+							$limit
+							";
+					
+					break;
+				case $this->MapGroup->LDAP_GRP_CTRACK_APPLICANT :
+					$sql   = "SELECT SQL_CALC_FOUND_ROWS 
+								rw_id          ,			
+								firstname      ,
+								middlename     ,
+								lastname       ,
+								email          ,
+								status         ,
+								group_name     ,
+								creation_date  ,
+								ctrac_app      ,
+								is_migrated    ,
+								login_attempts ,
+								user_role       
+							FROM sso_users  
+							WHERE 
+								LENGTH(IFNULL(ctrac_app,'')) > 0 
+							ORDER BY rw_id
+							$limit
+							";
+					
+					break;					
+				default:
+					debug("ldap_cn_user_list() : hahaha, oops, invalid CN GROUP> $cn; $uid;#");
+					return null;
+		}
+		
+			$res   = $gSqlDb->query($sql, "ldap_cn_user_list() : ERROR : $sql");
+
+		//total-rows
+		$is_ok = $gSqlDb->numRows($res);
+		$data  = array();
+		$sdata = array('exists' => intval($is_ok));
+		
+		//get data
+		if($is_ok>0)
+		{
+			while($xrow = $gSqlDb->getAssoc($res))
+			{
+					$data[] = $xrow;
+			}
+		}
+		
+		//save
+		$sdata['data']      = $data;
+		$sdata['totalrows'] = $this->get_total_rows();
+		
+		debug("ldap_cn_user_list() : INFO : [ $sql => $is_ok ]");
+		
+		//free-up
+		if($res) $gSqlDb->free($res);
+		
+		//give it back ;-)
+		return $sdata;
+
+	}
+
+	//get data
+	protected function get_total_rows()
+	{
+		//globals here
+		global $gSqlDb;
+
+		debug("get_total_rows() : INFO : ");
+		
+		//select
+		$sql = "SELECT FOUND_ROWS() as rows";
+		$res = $gSqlDb->query($sql, "get_total_rows() : ERROR : $sql");
+
+		//total-rows
+		$is_ok = $gSqlDb->numRows($res);
+		$data  = array();
+		$sdata = array('exists' => intval($is_ok));
+		
+		//get data
+		if($is_ok>0)
+		{
+			$strow = $gSqlDb->getAssoc($res);
+			$total = intval($strow['rows']);
+		}
+		
+		//save
+		$sdata['total'] = $total;
+		
+		debug("get_total_rows() : INFO : [ $sql => $is_ok / $total;]");
+		
+		//free-up
+		if($res) $gSqlDb->free($res);
+		
+		//give it back ;-)
+		return $sdata;
+		
+	}
 	
+	//get data
+	protected function ldap_user_upd_email_db($pdata=array())
+	{
+		//globals here
+		global $gSqlDb;
+
+		debug("ldap_user_upd_email_db() : INFO");
+		
+		//fmt-params
+		$email = addslashes(trim($pdata['email'     ]  ));
+		$rw_id = addslashes(trim($pdata['rw_id'     ]  ));
+		
+		//
+		$sql   = "UPDATE sso_users SET email = '$email', creation_date=Now() WHERE rw_id = '$rw_id' LIMIT 1";
+
+		//exec
+		$res   = $gSqlDb->exec($sql, "ldap_user_upd_email_db() : ERROR : $sql");
+		$is_ok = $gSqlDb->updRows($res);
+
+		debug("ldap_user_upd_email_db() : INFO : [ $sql => $res => $is_ok ]");
+
+		//free-up
+		if($res) $gSqlDb->free($res);
+
+		//give it back ;-)
+		return ($res)?(1):(0);
+	}
+
+	//get data
+	protected function ldap_user_upd_activeflag_db($pdata=array())
+	{
+		//globals here
+		global $gSqlDb;
+
+		debug("ldap_user_upd_email_db() : INFO");
+		
+		//fmt-params
+		$status= addslashes(@intval(trim($pdata['status'])));
+		$rw_id = addslashes(trim($pdata['rw_id' ]         ));
+		
+		//
+		$sql   = "UPDATE sso_users SET status = '$status', creation_date=Now() WHERE rw_id = '$rw_id' LIMIT 1";
+
+		//exec
+		$res   = $gSqlDb->exec($sql, "ldap_user_upd_activeflag_db() : ERROR : $sql");
+		$is_ok = $gSqlDb->updRows($res);
+
+		debug("ldap_user_upd_activeflag_db() : INFO : [ $sql => $res => $is_ok ]");
+
+		//free-up
+		if($res) $gSqlDb->free($res);
+
+		//give it back ;-)
+		return ($res)?(1):(0);
+	}
+
 
 	//encrypt
 	protected function str_enc($word='')
@@ -2583,5 +3035,25 @@ class LDAP_Api{
 		
 	}
 	
+	//paging
+	public function paging()
+	{
+		
+		$batch   = @intval(trim($_REQUEST['batch']));
+		$page    = @intval(trim($_REQUEST['page' ]));
+
+		//default
+		if($batch  < 1)
+			$batch = $this->LIMIT;
+
+		//calc
+		$pagex = ($page <= 1) ?  (0) : (($page-1)*$batch);
+
+		return array(
+			'page'  => (($page < 1) ? (1) : ($page)),
+			'batch' => $batch,
+			'pagex' => $pagex,
+		);
+	}	
 }//class	
 ?>

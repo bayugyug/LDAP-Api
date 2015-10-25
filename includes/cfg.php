@@ -100,12 +100,18 @@ define('API_HIT_CSV_DUMP',      'csvdump');
 define('API_HIT_WORD_ENC',      'encrypt');
 define('API_HIT_WORD_DEC',      'decrypt');
 define('API_HIT_RESET_PASS',    'resetpass');
+define('API_HIT_ENTRY_CHMAIL',  'changemail');
+
 //session
 define('API_SID_NAME',          'LDAPApi');
 
 
 define('API_CSV_FILEFORM',      'filecsv');
 define('API_CSV_DIR',           'uploads/');
+
+
+define('BATCH_LIST_MAX',        20);
+
 
 //environment
 define('API_ENVT',$gDev);

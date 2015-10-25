@@ -30,7 +30,7 @@ class LDAP_Groups_Api{
 	var  $LDAP_GRP_MSTR             = 'mstr';
 	var  $LDAP_GRP_CTRACK_APPLICANT = 'ctrac_applicant';
 	var  $LDAP_GRP_CTRACK_EMPLOYEE  = 'ctrac_employee';
-
+	var  $LDAP_GRP_RCCL             = 'rccl';	
 
 	/**
 	* main API
@@ -146,6 +146,14 @@ class LDAP_Groups_Api{
 										'rdn'         => sprintf("ou=Groups,%s",LDAP_RDN_MAIN ),
 										'objectClass' => array('top','person','organizationalPerson','inetorgperson'),
 									 ),
+				'rccl'           => array(
+									    'dn'          => LDAP_RDN_MAIN,
+										'cn'          => 'rccl',
+										'ou'          => 'Groups',
+										'rdn'         => sprintf("ou=Groups,%s",LDAP_RDN_MAIN ),
+										'objectClass' => array('top','person','organizationalPerson','inetorgperson'),
+									 ),
+									 
 			);
 		
 	} //init

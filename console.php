@@ -18,7 +18,7 @@
 	    word-wrap: break-word;
     	    overflow-wrap: break-word;
 	    text-overflow: ellipsis;
-	    width: 450px; 
+	    width: 780px; 
 	}
 </style>
 </head>
@@ -32,7 +32,7 @@
     <h1>LDAP API Console</h1>
     </div>
 	<div class="table-responsive">
-    <table style="width:587px;" class='table table-hover'>
+    <table style="width:840px;" class='table table-hover'>
         <tr>
             <td style="width:35%;" class="success">
 				<strong>
@@ -55,6 +55,7 @@
 					<option value="/api/index.php/ldap/restapi/resetpass"  >11. LDAP User Reset Password</option>
 					<option value="/api/index.php/ldap/restapi/encryptword">12. LDAP Utils (Encrypt)</option>
 					<option value="/api/index.php/ldap/restapi/decryptword">13. LDAP Utils (Decrypt)</option>
+					<option value="/api/index.php/ldap/restapi/changemail" >14. LDAP User Change Email</option>
 			   </select>
             </td>
         </tr>
@@ -81,7 +82,7 @@
 
         <tr>
             <td class="success">&nbsp;</td>
-            <td align="center" valign="top" class="success">
+            <td align="left" valign="top" class="success">
 					
 					    <a href="#" class="btn btn-info btn-lg" id="cmbPost">
 							<span class="glyphicon glyphicon-search">

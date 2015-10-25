@@ -62,8 +62,15 @@ if(0)
 debug("api(): Start!");
 
 //run
-$api = new LDAP_Api(API_HIT_ENTRY_RESTAPI);
-$api->hit();
+/**
+|
+|  LDAP_Api($action = API_HIT_ENTRY_SEARCH,$showres=true,$status=false)
+|  
+|    - SHOWRES = will output json reply
+|    - STATUS  = will output headers
+|
+**/
+$api = new LDAP_Api(API_HIT_ENTRY_RESTAPI,true,true);
 
 debug("api(): VIA REST API > ");
  
@@ -80,97 +87,104 @@ $app->group('/ldap', function () use ($app,&$api)
 		//sign-in
 		$app->map('/signin', function () use ($app,&$api) 
 		{
-			$api->hit(API_HIT_SIGN_IN);
+			$api->hit(API_HIT_SIGN_IN,$app);
 			return true;
 		})->via('GET', 'POST');  
 	 
         //add entry
 		$app->map('/add', function () use ($app,&$api) 
 		{
-			$api->hit(API_HIT_ENTRY_ADD);
+			$api->hit(API_HIT_ENTRY_ADD,$app);
 			return true;
 		})->via('POST', 'PUT');  
         
 		//update entry
 		$app->map('/modify', function () use ($app,&$api) 
 		{
-			$api->hit(API_HIT_ENTRY_UPDATE);
+			$api->hit(API_HIT_ENTRY_UPDATE,$app);
 			return true;
 		})->via('POST', 'PUT');
 		
 		//search
 		$app->map('/search', function () use ($app,&$api) 
 		{
-			$api->hit(API_HIT_ENTRY_SEARCH);
+			$api->hit(API_HIT_ENTRY_SEARCH,$app);
 			return true;
 		})->via('GET', 'POST');
 		
 		//list
 		$app->map('/list', function () use ($app,&$api) 
 		{
-			$api->hit(API_HIT_ENTRY_LIST);
+			$api->hit(API_HIT_ENTRY_LIST,$app);
 			return true;
 		})->via('GET', 'POST');
     	
 		//change-password
 		$app->map('/changepass', function () use ($app,&$api) 
 		{
-			$api->hit(API_HIT_ENTRY_CHPASS);
+			$api->hit(API_HIT_ENTRY_CHPASS,$app);
 			return true;
 		})->via('GET', 'POST');
 		
 		//member-of
 		$app->map('/memberof', function () use ($app,&$api) 
 		{
-			$api->hit(API_HIT_ENTRY_MEMBER);
+			$api->hit(API_HIT_ENTRY_MEMBER,$app);
 			return true;
 		})->via('GET', 'POST');  
 		
 		//session
 		$app->map('/session', function () use ($app,&$api) 
 		{
-			$api->hit(API_HIT_ENTRY_SESSION);
+			$api->hit(API_HIT_ENTRY_SESSION,$app);
 			return true;
 		})->via('GET', 'POST');  
 		
 		//session id
 		$app->map('/sid', function () use ($app,&$api) 
 		{
-			$api->hit(API_HIT_ENTRY_SID);
+			$api->hit(API_HIT_ENTRY_SID,$app);
 			return true;
 		})->via('GET', 'POST');  
 		
 		//sign-out
 		$app->map('/signout', function () use ($app,&$api) 
 		{
-			$api->hit(API_HIT_SIGN_OUT);
+			$api->hit(API_HIT_SIGN_OUT,$app);
 			return true;
 		})->via('GET', 'POST'); 
 		
 		//csv upload
 		$app->map('/dumpcsv', function () use ($app,&$api) 
 		{
-			$api->hit(API_HIT_CSV_DUMP);
+			$api->hit(API_HIT_CSV_DUMP,$app);
 			return true;
 		})->via('GET', 'POST'); 
 		//word encrypt
 		$app->map('/encryptword', function () use ($app,&$api) 
 		{
-			$api->hit(API_HIT_WORD_ENC);
+			$api->hit(API_HIT_WORD_ENC,$app);
 			return true;
 		})->via('GET', 'POST'); 
 		//word decrypt
 		$app->map('/decryptword', function () use ($app,&$api) 
 		{
-			$api->hit(API_HIT_WORD_DEC);
+			$api->hit(API_HIT_WORD_DEC,$app);
 			return true;
 		})->via('GET', 'POST'); 
 		//reset password 
 		$app->map('/resetpass', function () use ($app,&$api) 
 		{
-			$api->hit(API_HIT_RESET_PASS);
+			$api->hit(API_HIT_RESET_PASS,$app);
 			return true;
 		})->via('GET', 'POST'); 
+		//change-email
+		$app->map('/changemail', function () use ($app,&$api) 
+		{
+			$api->hit(API_HIT_ENTRY_CHMAIL,$app);
+			return true;
+		})->via('GET', 'POST');
+		
 		
 	}); //MAP REST-API
 	

@@ -30,6 +30,7 @@ my $LDIF     = 0;
 my $PASSDEF  = 'abc123';
 my $STATS    = {};
 my $TODI     = strftime("%Y-%m-%d",localtime);
+my $LOGFILE  = sprintf("%s/log/%s-ldap-curl.log",$ROOT,$TODI);
 
 #get csv file
 getopt("f:");
@@ -41,14 +42,15 @@ my $csv     = $opt_f;
 #chk
 unless(-e $csv){
  
- print "
- 
+print "
+
 Oops, parameter invalid!
- 
+
 ./$Script -f csv-file
- 
- ";
-   exit 1
+
+";
+exit 1;
+
 }
 	
 
@@ -82,13 +84,13 @@ if($xt !~ /^(csv)$/i)
 	exit 1;
 }
 
-
-print "info: $cn -> $xt\n";
+&debug("Start!!!");
+&debug("Info: $cn -> $xt");
 
 
 if($cn !~ /^(travel_mart|rclcrew|mstr|ctrac_applicant|ctrac_employee)$/i)
 {
-	print "
+	&debug("
 	
 	Invalid filenaming convention.
 	
@@ -96,7 +98,7 @@ if($cn !~ /^(travel_mart|rclcrew|mstr|ctrac_applicant|ctrac_employee)$/i)
 	
 	<travel_mart|rclcrew|mstr|ctrac_applicant|ctrac_employee>.csv
 	
-	";
+	");
 	exit 1;
 }
 
@@ -135,34 +137,34 @@ while(<$fh>)
 	
 	if(length($ldap_uid) <=0)
 	{
-		print "Ignoring> blank uid $ldap_uid;\n";
+		&debug("Ignoring> blank uid $ldap_uid;");
 		next;
 	}
 	if(length($ldap_name) <=0)
 	{
-		print "Ignoring> blank name $ldap_name;\n";
-		next;
+		&debug("Warn> blank name $ldap_name;");
+		$ldap_name = sprintf("blank-name-%08d",$parsed);
 	}
 	if(length($ldap_sn) <=0)
 	{
-		print "Ignoring> blank sn $ldap_sn;\n";
-		next;
+		&debug("Warn> blank sn $ldap_sn;");
+		$ldap_name = sprintf("blank-sn-%08d",$parsed);
 	}
 	if(length($ldap_mail) <=0)
 	{
-		print "Ignoring> blank mail $ldap_mail;\n";
+		&debug("Ignoring> blank mail $ldap_mail;");
 		next;
 	}
 	if(length($ldap_pass) <=0)
 	{
-	    my $rstr   = Digest::MD5::md5_base64( rand );
-		   $rstr   =~ s/[^A-Z0-9]+//gi;
-		$ldap_pass = substr($rstr,0,8);
-		print "set default> blank password=> '$ldap_pass'\n";
+	    my $rstr      = Digest::MD5::md5_base64( rand );
+		   $rstr      =~ s/[^A-Z0-9]+//gi;
+		   $ldap_pass = substr($rstr,0,8);
+		&debug("set default> blank password=> '$ldap_pass'");
 	}
 	$parsed++;
 	#chk
-	&ldap_curl($cn,$ldap_uid,$ldap_name,$ldap_sn,$ldap_mail,$ldap_pass);
+	&ldap_curl($parsed,$cn,$ldap_uid,$ldap_name,$ldap_sn,$ldap_mail,$ldap_pass);
 }
 
 #free
@@ -171,18 +173,9 @@ close($fh);
 #stats
 while (my($k,$v) = each %$STATS)
 {
-	print "$k -> $v\n";
+	&debug("STATS> $k -> $v");
 }
-
-
-
-
-
-
-
-
-
-
+&debug("Done");
 
 
 
@@ -195,6 +188,18 @@ sub trim()
 	return $str;
 }
 
+sub debug()
+{
+	my ($msg) = (@_);
+	my $ts    = strftime("%Y-%m-%d %H:%M:%S",localtime);
+	
+	print "[$ts] - $msg\n";
+	
+	open($wh,">>$LOGFILE") or die("ERROR: file open failed $!\n");
+	print $wh "[$ts] - $msg\n";
+	close($wh);
+}
+
 sub iosave()
 {
 	my($fn,$msg) = (@_);
@@ -205,7 +210,7 @@ sub iosave()
 
 sub ldap_curl()
 {
-	my ($cn,$uid,$name,$sn,$mail,$pass) = (@_);
+	my ($parsed,$cn,$uid,$name,$sn,$mail,$pass) = (@_);
 	
 	my $m      = substr($name,0,1);
 	my $cmd    = "/usr/bin/curl -X POST -d \"description=manual\" -d \"user=$uid\" -d \"pass=$pass\" -d \"company=$cn\" -d \"email=$mail\" -d \"firstname=$name\" -d \"lastname=$sn\" -d \"middname=$m\" \"$URL\" ";
@@ -213,12 +218,12 @@ sub ldap_curl()
 	chomp($web);
 	if($web =~ /"status":true,/i)
 	{
-		print "DUMP-OK! [$uid/$mail]\n$web\n";
+		&debug("$parsed; #DUMP-OK! [$uid/$mail] - $web");
 		$STATS->{"OK"}++;
 	}
 	else
 	{
-	   print "DUMP-NOT-OK! [$uid/$mail]\n$web\n";
+	   &debug("$parsed; #DUMP-NOT-OK! [$uid/$mail] -> $web");
 	   $STATS->{"NOT-OK"}++;
 	}
 }
