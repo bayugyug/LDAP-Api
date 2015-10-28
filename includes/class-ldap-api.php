@@ -659,6 +659,7 @@ class LDAP_Api{
 						'mail'      => $bdata['data']['email'],
 						'sn'        => sprintf("%s",$bdata['data']['lastname']),
 						'givenname' => sprintf("%s %s %s",$bdata['data']['firstname'],$bdata['data']['middlename'],$bdata['data']['lastname']),
+						'is_migrated' => sprintf("%d",$bdata['data']['is_migrated']),
 				),
 				'found'   => (@count($CNlist)>0)?(1):(0),
 				'member'  => $CNlist,
@@ -762,7 +763,6 @@ class LDAP_Api{
 			if(
 				!strlen($user)        or 
 				!strlen($firstname)   or 
-				!strlen($middlename)  or 
 				!strlen($lastname)    or 
 				!strlen($desc) 
 			)
@@ -1146,12 +1146,20 @@ class LDAP_Api{
 				$this->send_reply($reply);
 				return;
 			}
-
+			
+				
 			//db dip here
 			$ndata['firstname' ] = $firstname ; 
 			$ndata['middlename'] = $middlename;
 			$ndata['lastname'  ] = $lastname  ;
 			$ndata['email'     ] = $email     ;
+			
+			//just in case
+			if(! strlen($middlename))
+			{
+				$middlename          = 'M';
+				$ndata['middlename'] = $middlename;
+			}
 			
 			//sanity check
 			if($chkmail['exists']>0)
@@ -3057,3 +3065,4 @@ class LDAP_Api{
 	}	
 }//class	
 ?>
+

@@ -70,7 +70,7 @@ debug("api(): Start!");
 |    - STATUS  = will output headers
 |
 **/
-$api = new LDAP_Api(API_HIT_ENTRY_RESTAPI,true,true);
+$api = new LDAP_Api(API_HIT_ENTRY_RESTAPI,true,false);
 
 debug("api(): VIA REST API > ");
  
