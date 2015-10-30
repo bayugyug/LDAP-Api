@@ -404,7 +404,7 @@ class LDAP_Api{
 
 			
 			//chk email
-			$bdata = $this->ldap_user_get_by_userid($user);
+			$bdata = $this->ldap_user_get_by_userid($user,true);
 			if(!$bdata['exists'])
 			{
 					//fmt reply 404
@@ -601,7 +601,7 @@ class LDAP_Api{
 
 			
 			//chk email
-			$bdata = $this->ldap_user_get_by_userid($uid);
+			$bdata = $this->ldap_user_get_by_userid($uid,true);
 			if(!$bdata['exists'])
 			{
 					//fmt reply 404
@@ -1040,7 +1040,7 @@ class LDAP_Api{
 				!strlen($user)      or 
 				!strlen($firstname) or 
 				!strlen($lastname)  or 
-				!$this->is_valid_email($email) or 
+				!strlen($email)     or
 				( !strlen($pass) and (!$chkmail['exists']) ) or 
 				!strlen($desc) or
 				!strlen($cn)
@@ -1058,7 +1058,7 @@ class LDAP_Api{
 			
 			//chk email + and userid
 			$bdata = $this->ldap_user_get_by_userid($user);
-			if( ( $bdata['exists'] and $chkmail['exists'] )
+			if( ( $bdata['exists'] )
 				and
 			    ( $email !== $bdata['data']['email'] )
 			)
@@ -2664,22 +2664,24 @@ class LDAP_Api{
 	
 
 	//get data
-	protected function ldap_user_get_by_userid($user='')
+	protected function ldap_user_get_by_userid($user='',$emailtoo=false)
 	{
 		//globals here
 		global $gSqlDb;
 
-		debug("ldap_user_get_by_userid() : INFO : [ user=$user; ]");
+		debug("ldap_user_get_by_userid() : INFO : [ user=$user; flag=$emailtoo; ]");
 		
 		//fmt-params
-		$user   = addslashes(trim($user));
-
+		$user     = addslashes(trim($user));
+		$incwhere = ($emailtoo) ? (" email = '$user' or ") : ('');
+		
 		//select
 		$sql = "SELECT * 
 				FROM 
 					sso_users 
 				WHERE 
-					( tm         = '$user' or 
+					( $incwhere
+					  tm         = '$user' or 
 					  rclcrew    = '$user' or 
 					  mstr       = '$user' or
 					  ctrac      = '$user' or
@@ -3065,4 +3067,5 @@ class LDAP_Api{
 	}	
 }//class	
 ?>
+
 
