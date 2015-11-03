@@ -148,7 +148,7 @@ while(<$fh>)
 	if(length($ldap_sn) <=0)
 	{
 		&debug("Warn> blank sn $ldap_sn;");
-		$ldap_sn = sprintf("blank-sn-%08d",$parsed);
+		$ldap_sn   = sprintf("blank-sn-%08d",$parsed);
 	}
 	if(length($ldap_mail) <=0)
 	{

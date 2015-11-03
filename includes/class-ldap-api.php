@@ -428,6 +428,17 @@ class LDAP_Api{
 					return;
 			}
 			
+			//check migrated flag
+			if(@intval($bdata['data']['is_migrated']) <= 0 )
+			{
+					//fmt reply 409
+					$reply['statuscode'] = HTTP_CONFLICT;
+					$reply['message']    = "The user have not yet migrated!";
+					//give it back
+					$this->send_reply($reply);
+					return;
+			}
+			
 			//get list
 			$uidlist   = array();
 			$CNlist    = array();
@@ -464,16 +475,15 @@ class LDAP_Api{
 			debug("CNlist> $dmp");
 
 			//log
-			$rw_id = $bdata['data']['rw_id'];
-			$res   = $this->try_ldap(LDAP_NORMAL_USER, $rw_id,$pass,LDAP_RDN_GROUPS);
+			$rw_id  = $bdata['data']['rw_id'];
+			$rw_pwd = (@intval($bdata['data']['is_migrated']) <= 0 ) ? ($this->str_dec($bdata['data']['passwd'])) : ($pass);
+			$res    = $this->try_ldap(LDAP_NORMAL_USER, $rw_id, $pass,LDAP_RDN_GROUPS);
 			if(!$res['ldapstat'])
 			{
 				$this->send_reply($res['ldapmesg']);
-				
 				return;
-				
 			}
-	
+			
 			//unset all active
 			for($i=0; $i < @count($CNlist); $i++)
 			{
@@ -505,9 +515,10 @@ class LDAP_Api{
 									));
 				 $dbsess["$cn"]  = $this->get_session_db_by($xuser,$cn);														
 			}
-			
+		
+	
 			//get db query
-			$dtls   = $this->get_user_details($user);		
+			$dtls   = $this->get_user_details($rw_id);		
 
 			//free memory
 			$this->unset_sess_id();
@@ -548,7 +559,8 @@ class LDAP_Api{
 						return;
 					}				
 			}
-			
+	
+					
 			//give it back
 			$this->send_reply($reply);
 
@@ -1808,7 +1820,10 @@ class LDAP_Api{
 					}
 					
 			}
-
+			
+			//flag
+			$this->ldap_user_upd_migrated_flag($user);
+			
 			//reset password, use the parameter
 			$ndata['email' ] = $bdata['data']['email'] ;
 			$ndata['pass']   = base64_encode(pack('H*', md5($pass)));
@@ -2017,7 +2032,7 @@ class LDAP_Api{
 				if(strlen($user)>0)
 				{
 					//chk email
-					$bdata = $this->ldap_user_get_by_userid($user);
+					$bdata = $this->ldap_user_get_by_userid($user,true);
 					if(!$bdata['exists'])
 					{
 							//fmt reply 404
@@ -2172,7 +2187,7 @@ class LDAP_Api{
 					* 
 				FROM sso_users 
 				WHERE 
-					ouid = '$usr'
+					rw_id = '$usr'
 				LIMIT 1	
 		       ";
 		
@@ -2607,6 +2622,33 @@ class LDAP_Api{
 		$is_ok = $gSqlDb->updRows($res);
 
 		debug("ldap_user_upd_pwd_db() : INFO : [ $sql => $res => $is_ok ]");
+
+		//free-up
+		if($res) $gSqlDb->free($res);
+
+		//give it back ;-)
+		return $is_ok;
+	}
+	
+	//is_migrated data
+	protected function ldap_user_upd_migrated_flag($id=0)
+	{
+		//globals here
+		global $gSqlDb;
+
+		debug("ldap_user_upd_migrated_flag() : INFO");
+		
+		//fmt-params
+		$id = addslashes( trim($id) );
+		
+		//
+		$sql   = "UPDATE sso_users SET is_migrated = '1' WHERE rw_id = '$id' LIMIT 1";
+
+		//exec
+		$res   = $gSqlDb->exec($sql, "ldap_user_upd_migrated_flag() : ERROR : $sql");
+		$is_ok = $gSqlDb->updRows($res);
+
+		debug("ldap_user_upd_migrated_flag() : INFO : [ $sql => $res => $is_ok ]");
 
 		//free-up
 		if($res) $gSqlDb->free($res);
@@ -3067,5 +3109,6 @@ class LDAP_Api{
 	}	
 }//class	
 ?>
+
 
 
