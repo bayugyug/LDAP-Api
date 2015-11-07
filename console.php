@@ -56,6 +56,8 @@
 					<option value="/api/index.php/ldap/restapi/encryptword">12. LDAP Utils (Encrypt)</option>
 					<option value="/api/index.php/ldap/restapi/decryptword">13. LDAP Utils (Decrypt)</option>
 					<option value="/api/index.php/ldap/restapi/changemail" >14. LDAP User Change Email</option>
+					<option value="/api/index.php/ldap/restapi/deactivate" >15. LDAP User De-Activate</option>
+					
 			   </select>
             </td>
         </tr>
@@ -112,4 +114,5 @@
 </div>
 </body>
 </html>
+
 

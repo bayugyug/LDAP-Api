@@ -19,6 +19,7 @@ $(function() {
 	params["/api/index.php/ldap/restapi/encryptword"]= ["word"]; 
 	params["/api/index.php/ldap/restapi/decryptword"]= ["word","user"]; 
 	params["/api/index.php/ldap/restapi/changemail"] = ["user", "email"];
+	params["/api/index.php/ldap/restapi/deactivate"] = ["user", "company"]; 
 	
 	$('#cmbAPIType').val(0);
 	$('#tdParams').html('&nbsp');

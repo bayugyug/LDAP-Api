@@ -101,6 +101,7 @@ define('API_HIT_WORD_ENC',      'encrypt');
 define('API_HIT_WORD_DEC',      'decrypt');
 define('API_HIT_RESET_PASS',    'resetpass');
 define('API_HIT_ENTRY_CHMAIL',  'changemail');
+define('API_HIT_ENTRY_DEACTIVATE','deactivate');
 
 //session
 define('API_SID_NAME',          'LDAPApi');

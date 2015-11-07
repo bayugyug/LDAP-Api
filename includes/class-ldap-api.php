@@ -135,6 +135,9 @@ class LDAP_Api{
 					case API_HIT_ENTRY_CHMAIL:
 						$this->do_entry_change_email();
 						break;	
+					case API_HIT_ENTRY_DEACTIVATE:
+						$this->do_entry_update_active();
+						break;						
 					//notfound
 					default:	
 						$this->send_reply($this->notfound());
@@ -800,8 +803,7 @@ class LDAP_Api{
 			}
 			$dmp = @var_export($bdata,1);				
 			debug("DB-RROW> $dmp");
-
-			
+		
 			//conn
 			$res = $this->try_ldap(LDAP_ADMIN_USER,null,null,LDAP_ENTRY_ROOT_DN_UPD);
 			if(!$res['ldapstat'])
@@ -902,6 +904,122 @@ class LDAP_Api{
 	}
 	
 	
+	//update active flag
+	protected function do_entry_update_active()
+	{
+			//get params
+			$user      = trim($_REQUEST['user']);
+			$cn        = strtolower(trim($_REQUEST["company"]));
+			$active    = trim($_REQUEST["active"] );
+			
+			//init
+			$reply = $this->init_resp();
+
+			//sanity check -> LISTS
+			if(
+				!strlen($user)        or 
+				!strlen($cn)          
+			)
+			{
+				//fmt reply 500
+				$reply['statuscode'] = HTTP_BAD_REQUEST;
+				$reply['message']    = "Invalid parameters!";
+				//give it back
+				$this->send_reply($reply);
+				return;
+			}
+
+			//chk email
+			$bdata = $this->ldap_user_get_by_userid($user);
+			if(!$bdata['exists'])
+			{
+					//fmt reply 404
+					$reply['statuscode'] = HTTP_NOT_FOUND;
+					$reply['message']    = "User not found in db!";
+					//give it back
+					$this->send_reply($reply);
+					return;
+			}
+			$dmp = @var_export($bdata,1);				
+			debug("do_entry_update_active-RROW> $dmp");
+ 
+						
+			//get map
+			$map = $this->MapGroup->get($cn);
+			
+			//chk if invalid group -> 404::HTTP_NOT_FOUND
+			if(! $this->MapGroup->is_group_valid($cn) or null == $map)
+			{
+				//fmt reply 404
+				$reply['statuscode'] = HTTP_NOT_FOUND;
+				$reply['message']    = "CN not found!";
+				//give it back
+				$this->send_reply($reply);
+				return;
+				
+			}
+			
+			//log
+			$tmf = @var_export($map,1);
+			debug("do_entry_update_active-MAP> $tmf");
+			
+			//conn
+			$res = $this->try_ldap(LDAP_ADMIN_USER,null,null,LDAP_ENTRY_ROOT_DN_UPD);
+			if(!$res['ldapstat'])
+			{
+				$this->send_reply($res['ldapmesg']);
+				return;
+				
+			}
+			
+			//get userid
+			$user = $bdata['data']['rw_id'];
+			
+			//get conn
+			$ldapconn                = $res['ldapconn'];
+			$ldapuser                = $user;
+			
+			if($user <= 0)
+			{
+					//fmt reply 403
+					$reply['status']     = false;
+					$reply['statuscode'] = HTTP_FORBIDDEN;
+					$reply['message']    = "De-Activate db entry failed.";
+					$reply['error']      = $this->fmt_err_msg($ldapconn);
+					//give it back
+					$this->send_reply($reply);
+					return;
+			}
+ 
+			
+			//active-status-flag
+			if(1)
+			{
+					$upd = $this->ldap_user_upd_deactivate_cn_db(
+										array(
+											'cn'   => $cn,
+											'uid'  => $user,
+											)
+									);
+					debug("do_entry_update_active[ACTIVE-FLAG] > set = $active;#$upd");	
+			}
+			
+			//fmt reply 200
+			$reply['status']     = true;
+			$reply['statuscode'] = HTTP_SUCCESS;
+			$reply['message']    = "De-Activate entry successful.";
+			$reply['result']     = array(
+								 );
+
+			//give it back
+			$this->send_reply($reply);
+
+			//free
+			if($ldapconn)
+			  @ldap_free_result($ldapconn);
+
+	
+	}
 	
 	//update password
 	protected function do_entry_change_pass()
@@ -935,7 +1053,7 @@ class LDAP_Api{
 			}
 
 			//chk email
-			$bdata = $this->ldap_user_get_by_userid($user);
+			$bdata = $this->ldap_user_get_by_userid($user,true);
 			if(!$bdata['exists'])
 			{
 					//fmt reply 404
@@ -1054,7 +1172,6 @@ class LDAP_Api{
 				!strlen($lastname)  or 
 				!strlen($email)     or
 				( !strlen($pass) and (!$chkmail['exists']) ) or 
-				!strlen($desc) or
 				!strlen($cn)
 			)
 			{
@@ -1110,6 +1227,9 @@ class LDAP_Api{
 			//log
 			$tmf = @var_export($map,1);
 			debug("map> $tmf");
+			
+			//not-strict
+			$desc = (!@strlen($desc)) ? ('No-Desc') : ($desc);
 			
 			//get conn
 			$ldapconn                = $res['ldapconn'];
@@ -1263,7 +1383,8 @@ class LDAP_Api{
 						$info["objectClass"][]   = $mapx['objectClass'][1];
 						$info["objectClass"][]   = $mapx['objectClass'][2];
 						$info["objectClass"][]   = $mapx['objectClass'][3];
-						$info["description"]     = $desc;
+						if ($desc != '')
+							$info["description"]     = $desc;
 						$info["userPassword"]    = '{md5}' . base64_encode(pack('H*', md5($pass)));
 						$ldaprdn                 = sprintf("uid=%s,%s",$user,$mapx['rdn']);  
 
@@ -1763,7 +1884,7 @@ class LDAP_Api{
 			}
 
 			//chk email
-			$bdata = $this->ldap_user_get_by_userid($user);
+			$bdata = $this->ldap_user_get_by_userid($user,true);
 			if(!$bdata['exists'])
 			{
 					//fmt reply 404
@@ -3011,7 +3132,55 @@ class LDAP_Api{
 		//give it back ;-)
 		return ($res)?(1):(0);
 	}
+	
+	//get data
+	protected function ldap_user_upd_deactivate_cn_db($pdata=array())
+	{
+		//globals here
+		global $gSqlDb;
 
+		debug("ldap_user_upd_cn_db() : INFO");
+		
+		//fmt-params
+		$cn           = addslashes(trim($pdata['cn'        ]  ));
+		$uid          = addslashes(trim($pdata['uid'       ]  ));
+		
+		debug("ldap_user_upd_deactivate_cn_db() : try to check CN GROUP> $cn; $uid;#");
+		
+		switch(strtolower($cn) )
+		{
+				case $this->MapGroup->LDAP_GRP_TRAVEL_MART      :
+					$sql   = "UPDATE sso_users SET tm        = null	WHERE rw_id = '$uid' LIMIT 1";
+					break;
+				case $this->MapGroup->LDAP_GRP_RCLREW           :
+					$sql   = "UPDATE sso_users SET rclcrew   = null WHERE rw_id = '$uid' LIMIT 1";
+					break;
+				case $this->MapGroup->LDAP_GRP_MSTR             :
+					$sql   = "UPDATE sso_users SET mstr      = null	WHERE rw_id = '$uid' LIMIT 1";
+					break;
+				case $this->MapGroup->LDAP_GRP_CTRACK_EMPLOYEE  :
+					$sql   = "UPDATE sso_users SET ctrac     = null	WHERE rw_id = '$uid' LIMIT 1";
+					break;
+				case $this->MapGroup->LDAP_GRP_CTRACK_APPLICANT :
+					$sql   = "UPDATE sso_users SET ctrac_app = null	WHERE rw_id = '$uid' LIMIT 1";
+					break;					
+				default:
+					debug("ldap_user_upd_deactivate_cn_db() : hahaha, oops, invalid CN GROUP> $cn; $uid;#");
+					return null;
+		}
+		
+		//exec
+		$res   = $gSqlDb->exec($sql, "ldap_user_upd_deactivate_cn_db() : ERROR : $sql");
+		$is_ok = $gSqlDb->updRows($res);
+
+		debug("ldap_user_upd_deactivate_cn_db() : INFO : [ $sql => $res => $is_ok ]");
+
+		//free-up
+		if($res) $gSqlDb->free($res);
+
+		//give it back ;-)
+		return $is_ok;
+	}
 
 	//encrypt
 	protected function str_enc($word='')
@@ -3109,6 +3278,7 @@ class LDAP_Api{
 	}	
 }//class	
 ?>
+
 
 
 

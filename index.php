@@ -184,8 +184,12 @@ $app->group('/ldap', function () use ($app,&$api)
 			$api->hit(API_HIT_ENTRY_CHMAIL,$app);
 			return true;
 		})->via('GET', 'POST');
-		
-		
+		//update active-flag
+		$app->map('/deactivate', function () use ($app,&$api) 
+		{
+			$api->hit(API_HIT_ENTRY_DEACTIVATE,$app);
+			return true;
+		})->via('POST', 'PUT');
 	}); //MAP REST-API
 	
 }); //MAP LDAP-GROUP
