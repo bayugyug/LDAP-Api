@@ -1076,6 +1076,18 @@ class LDAP_Api{
 					return;
 			}
 			
+			//chk if already used OLD from history
+			$chkhist = $this->ldap_user_get_pwd_hist($bdata['data']['email'],$encpass);
+			if($chkhist['exists'])
+			{
+					//fmt reply 406
+					$reply['statuscode'] = HTTP_NOT_ACCEPTABLE;
+					$reply['message']    = "New Password already used previously!";
+					//give it back
+					$this->send_reply($reply);
+					return;
+			}
+			
 			//conn
 			$res = $this->try_ldap(LDAP_ADMIN_USER,null,null,LDAP_ENTRY_ROOT_DN_UPD);
 			if(!$res['ldapstat'])
@@ -1086,6 +1098,9 @@ class LDAP_Api{
 				
 			}
 
+			
+			
+			
 			//get conn
 			$ldapconn                = $res['ldapconn'];
 			
@@ -1156,8 +1171,8 @@ class LDAP_Api{
 			$lastname  = trim($_REQUEST["lastname"  ]);
 			$email     = trim($_REQUEST["email"]        );
 			$desc      = trim($_REQUEST["description"] );
-			$cn        = strtolower(trim($_REQUEST["company"]));
-
+			$cn           = strtolower(trim($_REQUEST["company"]));
+			$is_migrated  = trim($_REQUEST["is_migrated"]);
 
 			//init
 			$reply     = $this->init_resp();
@@ -1432,6 +1447,14 @@ class LDAP_Api{
 				}//LDAP-ADD
 				
 			}
+			
+			
+			//flag
+			if( @preg_match("/^(1)$/", $is_migrated) )
+			{
+				$this->ldap_user_upd_migrated_flag(($chkmail['exists']>0) ? ($chkmail['data']['raw_id']) : ($user));
+			}
+			
 			
 			//fmt reply 200
 			$reply['status']     = true;
@@ -3182,6 +3205,55 @@ class LDAP_Api{
 		return $is_ok;
 	}
 
+	
+	//get data
+	protected function ldap_user_get_pwd_hist($email='',$pass='')
+	{
+		//globals here
+		global $gSqlDb;
+
+		debug("ldap_user_get_pwd_hist() : INFO : [ email=$email; pass=$pass; ]");
+		
+		//fmt-params
+		$email   = addslashes(trim($email));
+		$pass    = addslashes(trim($pass ));
+
+		//select
+		$sql = "SELECT *
+				FROM user_paswd_hist 
+				WHERE 
+					email  = '$email'
+					AND
+					passwd = '$pass'
+				LIMIT 1	
+		       ";
+		
+		$res   = $gSqlDb->query($sql, "ldap_user_get_pwd_hist() : ERROR : $sql");
+
+		//total-rows
+		$is_ok = $gSqlDb->numRows($res);
+		$data  = array();
+		$sdata = array('exists' => intval($is_ok));
+		
+		//get data
+		if($is_ok>0)
+		{
+			$data = $gSqlDb->getAssoc($res);
+		}
+		
+		//save
+		$sdata['data'] = $data;
+		
+		debug("ldap_user_get_pwd_hist() : INFO : [ $sql => $is_ok ]");
+		
+		//free-up
+		if($res) $gSqlDb->free($res);
+		
+		//give it back ;-)
+		return $sdata;
+		
+	}
+	
 	//encrypt
 	protected function str_enc($word='')
 	{
