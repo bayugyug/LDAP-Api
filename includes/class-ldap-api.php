@@ -1077,7 +1077,7 @@ class LDAP_Api{
 			}
 			
 			//chk if already used OLD from history
-			$chkhist = $this->ldap_user_get_pwd_hist($bdata['data']['email'],$encpass);
+			$chkhist = $this->ldap_user_get_pwd_hist($bdata['data']['email'],$this->str_enc($newpass));
 			if($chkhist['exists'])
 			{
 					//fmt reply 406
@@ -1925,6 +1925,22 @@ class LDAP_Api{
 				$this->send_reply($res['ldapmesg']);
 				return;
 			}
+			
+			
+			//chk if already used OLD from history
+			$encpass = $this->str_enc($pass);
+			$chkhist = $this->ldap_user_get_pwd_hist($bdata['data']['email'],$encpass);
+			if($chkhist['exists'])
+			{
+					//fmt reply 406
+					$reply['statuscode'] = HTTP_NOT_ACCEPTABLE;
+					$reply['message']    = "New Password already used previously!";
+					//give it back
+					$this->send_reply($reply);
+					return;
+			}
+			
+
 
 			//get conn
 			$ldapconn                = $res['ldapconn'];
@@ -2014,7 +2030,7 @@ class LDAP_Api{
 			}
 
 			//chk email
-			$bdata = $this->ldap_user_get_by_userid($user);
+			$bdata = $this->ldap_user_get_by_userid($user,true);
 			if(!$bdata['exists'])
 			{
 					//fmt reply 404
@@ -2759,7 +2775,7 @@ class LDAP_Api{
 		$pass  = addslashes(trim($pdata['pass'      ]  ));
 		
 		//
-		$sql   = "UPDATE sso_users SET passwd = '$pass' WHERE email = '$email' LIMIT 1";
+		$sql   = "UPDATE sso_users SET passwd = '$pass', passwd_update = Now() WHERE email = '$email' LIMIT 1";
 
 		//exec
 		$res   = $gSqlDb->exec($sql, "ldap_user_upd_pwd_db() : ERROR : $sql");
@@ -3225,6 +3241,8 @@ class LDAP_Api{
 					email  = '$email'
 					AND
 					passwd = '$pass'
+					AND
+					datein >= DATE_SUB(now(), INTERVAL 5 month)
 				LIMIT 1	
 		       ";
 		
@@ -3350,6 +3368,7 @@ class LDAP_Api{
 	}	
 }//class	
 ?>
+
 
 
 
