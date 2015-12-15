@@ -10,6 +10,7 @@
 #----------------------------------------------------------------------------------------
 
 
+use utf8;
 use File::Basename;
 use FindBin qw($Bin $Script $RealBin);
 use Getopt::Std;
@@ -55,6 +56,10 @@ exit 1;
 	
 
 
+
+`export LC_ALL=en_US.UTF-8 2>/dev/null`;
+`export LANG=en_US.UTF-8 2>/dev/null`;
+`export LANGUAGE=en_US.UTF-8 2>/dev/null`;
 
 my $fl = basename($csv);
 my @fn = split(/\./,$fl);
@@ -111,7 +116,13 @@ while(<$fh>)
 	
 	~s/\://gi;
 	
-	my @rec = split(/,/);
+
+	my $flag = utf8::is_utf8($_);
+	my $enc  = utf8::encode($_);
+
+        #my @rec = split(/,/,(($flag)?$enc:$_));
+        my @rec = split(/,/);
+
 	my $ldap_uid = $rec[0];
 	my $ldap_name= $rec[1];
 	my $ldap_more= $rec[2];
@@ -216,6 +227,8 @@ sub ldap_curl()
 	my $cmd    = "/usr/bin/curl -X POST -d \"description=manual\" -d \"user=$uid\" -d \"pass=$pass\" -d \"company=$cn\" -d \"email=$mail\" -d \"firstname=$name\" -d \"lastname=$sn\" -d \"middname=$m\" \"$URL\" ";
 	my $web    = ` $cmd 2>/dev/null`;
 	chomp($web);
+
+		&debug("$parsed; #CMD! - $cmd;");
 	if($web =~ /"status":true,/i)
 	{
 		&debug("$parsed; #DUMP-OK! [$uid/$mail] - $web");

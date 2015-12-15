@@ -1756,10 +1756,24 @@ class LDAP_Api{
 					debug("map> $tmf");
 			}
 			
+			// check first if has active session
+			
+			$isactive = $this->check_session_db_by($user,$cn);
+			
+			if ($isactive == '0')
+			{
+				//fmt reply 409
+				$reply['statuscode'] = HTTP_CONFLICT;
+				$reply['message']    = "There is no active session for specific cn";
+				//give it back
+				$this->send_reply($reply);
+				return;
+			}
+			
 				
 			//unset all active
-			$this->unset_session_db_by($user,$cn);
-			
+			$action_logout = $this->unset_session_db_by($user,$cn);
+
 			//fmt reply 200
 			$reply['status']     = true;
 			$reply['statuscode'] = HTTP_SUCCESS;
@@ -2567,6 +2581,43 @@ class LDAP_Api{
 		return $sdata;
 		
 	}
+	
+	//get if has active session
+	protected function check_session_db_by($usr,$cn='')
+	{
+		//globals here
+		global $gSqlDb;
+
+		debug("check_session_db_by() : INFO : [ sessionid=$sid; ]");
+		
+		//fmt-params
+		$usr      = addslashes(trim($usr));
+		$cn      = addslashes(trim($cn));
+		
+
+		//select
+		$sql = "SELECT SQL_CALC_FOUND_ROWS 
+					id
+				FROM ldap_session 
+				WHERE 
+					user = '$usr'
+					AND cn = '$cn'
+					AND expiry > NOW()
+				LIMIT 1	
+		       ";
+		$res   = $gSqlDb->query($sql, "check_session_db_by() : ERROR : $sql");
+
+		//total-rows
+		$is_ok = $gSqlDb->numRows($res);
+		debug("check_session_db_by() : INFO : [ $sql => $is_ok ]");
+		
+		//free-up
+		if($res) $gSqlDb->free($res);
+		
+		//give it back ;-)
+		return $is_ok;
+		
+	}
 
 	
 	
@@ -2647,11 +2698,11 @@ class LDAP_Api{
 					'$lastname',       
 					'$email',          
 					'$group_name',     
-					'$tm',             
-					'$mstr',           
-					'$rclcrew',        
-					'$ctrac',          
-					'$ctrac_app',  
+					NULLIF('$tm',''),             
+					NULLIF('$mstr',''),           
+					NULLIF('$rclcrew',''),        
+					NULLIF('$ctrac',''),          
+					NULLIF('$ctrac_app',''),  
 					now()
 				)  
 			   ";
@@ -3368,6 +3419,7 @@ class LDAP_Api{
 	}	
 }//class	
 ?>
+
 
 
 
